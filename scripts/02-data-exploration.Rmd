@@ -83,20 +83,22 @@ Assess the effect of the treatment of different policy positions. Reference cate
 Here, it's necessary to estimate binomial models since the dependent variable is categorical (1 support 2 oppose)
 
 ```{r}
-wage_model <- glm(minimum_wage ~ BGU_group, data = data_new, family = binomial(link = "logit"))
-taxes_model <- glm(taxes ~ BGU_group, data = data_new, family = binomial(link = "logit"))
-abortion_model <- glm(abortion ~ BGU_group, data = data_new, family = binomial(link = "logit"))
-immigration_model <- glm(immigration ~ BGU_group, data = data_new, family = binomial(link = "logit"))
-guns_model <- glm(guns ~ BGU_group, data = data_new, family = binomial(link = "logit"))
-health_model <- glm(health ~ BGU_group, data = data_new, family = binomial(link = "logit"))
-b_checks_model <- glm(b_checks ~ BGU_group, data = data_new, family = binomial(link = "logit"))
-climate_model <- glm(climate ~ BGU_group, data = data_new, family = binomial(link = "logit"))
-p_parent_model <- glm(p_parent ~ BGU_group, data = data_new, family = binomial(link = "logit"))
+model_list <- list(
+  "Wages" = glm(minimum_wage ~ BGU_group, data = data_new, family = binomial(link = "logit")),
+  "Taxes" = glm(taxes ~ BGU_group, data = data_new, family = binomial(link = "logit")),
+  "Abortion" = glm(abortion_recoded ~ BGU_group, data = data_new, family = binomial(link = "logit")),
+  "Immigration" = glm(immigration ~ BGU_group, data = data_new, family = binomial(link = "logit")),
+  "Guns" = glm(guns_recoded ~ BGU_group, data = data_new, family = binomial(link = "logit")),
+  "Health Care" = glm(health ~ BGU_group, data = data_new, family = binomial(link = "logit")),
+  "Background Checks" = glm(b_checks ~ BGU_group, data = data_new, family = binomial(link = "logit")),
+  "Climate Change" = glm(climate ~ BGU_group, data = data_new, family = binomial(link = "logit")),
+  "Planned Parenthood" = glm(p_parent ~ BGU_group, data = data_new, family = binomial(link = "logit"))
+)
 
-msummary(list(wage_model, taxes_model, abortion_model, immigration_model, guns_model, health_model,
-              b_checks_model, climate_model, p_parent_model),
-         stars = c('*' = .1, '**' = .05, '***' = .01),
-         output = "markdown")
+
+msummary(model_list, 
+         stars = c('*' = .1, '**' = .05, '***' = .01))
+
 ```
 
 
