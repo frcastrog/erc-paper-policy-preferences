@@ -1,0 +1,106 @@
+---
+title: "02-first-exploration"
+output: html_document
+date: "2023-09-18"
+---
+
+```{r}
+pacman::p_load(modelsummary)
+```
+
+# Open data
+
+```{r}
+load("~/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/data/02-processed-data/data_final.Rdata")
+```
+
+
+# First exploration
+
+Experimental groups:
+1 control / 2 trump liberal / 3 trump conservative / 4 CF liberal / 5 CF conservative
+
+```{r}
+table(data_new$BGU_group)
+```
+
+Policy positions
+Groups: 1 support / 2 oppose / 9 don't know
+
+Exploration of policy positions based on experimental groups
+New groups were created in order to assess the differences
+
+Minimum wage: Do you support or oppose increasing the minimum wage to over $10 an hour?
+Liberal position - support (1)
+```{r}
+table(data_new$minimum_wage, data_new$BGU_group)
+```
+Taxes: Do you support or oppose increasing the amount of taxes paid by the wealthy?
+Liberal position - support (1)
+```{r}
+table(data_new$taxes, data_new$BGU_group)
+```
+Abortion: Do you support or oppose enforcing penalties on women who obtain abortions?
+Liberal position - oppose (2)
+```{r}
+table(data_new$abortion, data_new$BGU_group)
+```
+Immigration: Do you support or oppose allowing illegal immigrants to the United States to obtain legal status?
+Liberal position - support (1)
+```{r}
+table(data_new$immigration, data_new$BGU_group)
+```
+Teachers carrying guns: Do you support or oppose allowing teachers to carry guns on school property?
+Liberal position - oppose (2)
+```{r}
+table(data_new$guns, data_new$BGU_group)
+```
+
+Health care: Do you support or oppose putting in place a health care system that covers all individuals under a government plan?
+Liberal position - support (1)
+```{r}
+table(data_new$health, data_new$BGU_group)
+```
+Background checks: Do you support or oppose mandating background checks on all weapons purchases?
+Liberal position - support (1)
+```{r}
+table(data_new$b_checks, data_new$BGU_group)
+```
+Climate change: Do you support or oppose acknowledging that humans are the largest contributing factor in global climate change?
+Liberal position - support (1)
+```{r}
+table(data_new$climate, data_new$BGU_group)
+```
+Planned parenthood: Do you support or oppose federal funding for Planned Parenthood services?
+Liberal position - support (1)
+```{r}
+table(data_new$p_parent, data_new$BGU_group)
+```
+
+# Preliminary analyses
+
+Assess the effect of the treatment of different policy positions. Reference category is control group.
+Here, it's necessary to estimate binomial models since the dependent variable is categorical (1 support 2 oppose)
+
+```{r}
+wage_model <- glm(minimum_wage ~ BGU_group, data = data_new, family = binomial(link = "logit"))
+taxes_model <- glm(taxes ~ BGU_group, data = data_new, family = binomial(link = "logit"))
+abortion_model <- glm(abortion ~ BGU_group, data = data_new, family = binomial(link = "logit"))
+immigration_model <- glm(immigration ~ BGU_group, data = data_new, family = binomial(link = "logit"))
+guns_model <- glm(guns ~ BGU_group, data = data_new, family = binomial(link = "logit"))
+health_model <- glm(health ~ BGU_group, data = data_new, family = binomial(link = "logit"))
+b_checks_model <- glm(b_checks ~ BGU_group, data = data_new, family = binomial(link = "logit"))
+climate_model <- glm(climate ~ BGU_group, data = data_new, family = binomial(link = "logit"))
+p_parent_model <- glm(p_parent ~ BGU_group, data = data_new, family = binomial(link = "logit"))
+
+msummary(list(wage_model, taxes_model, abortion_model, immigration_model, guns_model, health_model,
+              b_checks_model, climate_model, p_parent_model),
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         output = "markdown")
+```
+
+
+
+
+
+
