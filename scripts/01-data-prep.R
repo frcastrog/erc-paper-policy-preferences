@@ -1,6 +1,6 @@
 #-------------------------------Data Preparation-------------------------------#
 #-Author: Francisca Castro ----------------------- Created: September 18, 2023-#
-#-R Version: 4.3.1 ------------------------------- Revised: September 18, 2023-#
+#-R Version: 4.3.1 ------------------------------- Revised: September 19, 2023-#
 
 # 1) Load necessary packages
 
@@ -87,9 +87,9 @@ data_new %<>%
   mutate(
     minimum_wage = ifelse(minimum_wage == 2, 0, minimum_wage),
     taxes = ifelse(taxes == 2, 0, taxes),
-    abortion = ifelse(abortion == 2, 0, abortion),
+    abortion = ifelse(abortion == 2, 0, abortion), #oppose
     immigration = ifelse(immigration == 2, 0, immigration),
-    guns = ifelse(guns == 2, 0, guns),
+    guns = ifelse(guns == 2, 0, guns), #oppose
     health = ifelse(health == 2, 0, health),
     b_checks = ifelse(b_checks == 2, 0, b_checks),
     climate = ifelse(climate == 2, 0, climate),
@@ -97,6 +97,26 @@ data_new %<>%
   )
 
 table(data_new$minimum_wage, exclude = NULL)
+
+# 7) Change the order of some policy positions
+
+# For the majority of policy positions, the liberal option is the support option
+# whereas the oppose (2) stands for the conservative one, except in two cases:
+# Abortion: Do you support or oppose enforcing penalties on women who obtain abortions? Liberal position - oppose (2)
+# Guns: Do you support or oppose allowing teachers to carry guns on school property? Liberal position - oppose (2)
+
+# To maintain consistency, the positions will be switched so the lower number also shows the conservative option
+# and the higher number. Reminder: now oppose is 0 based on previous changes.
+
+table(data_new$abortion)
+table(data_new$guns)
+
+data_new %<>%
+  mutate(abortion_recoded = ifelse(abortion == 0, 1, 0),
+         guns_recoded = ifelse(guns == 0, 1, 0))
+
+table(data_new$abortion_recoded)
+table(data_new$guns_recoded)
 
 # Save data
 save(data_new, file = "/Users/franciscacastro/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/data/02-processed-data/data_final.Rdata")
