@@ -1,23 +1,115 @@
 ---
-title: "02-first-exploration"
-output: html_document
-date: "2023-09-18"
+title: "First Exploration"
+output: 
+  html_document:
+    theme: paper
+date: "`r Sys.Date()`"
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
-```{r}
-pacman::p_load(modelsummary, pwr, survey)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 ```
+
+# Load packages
+
+```{r message=FALSE, warning=FALSE}
+pacman::p_load(modelsummary, pwr, survey, broom, dplyr, tidyr, knitr, kableExtra, gt,
+               rstatix, ggeffects, ggplot2, gridExtra, magrittr)
+```
+
+<br>
 
 # Open data
 
 ```{r}
-load("~/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/data/02-processed-data/data_long.Rdata")
+#load("/Users/franciscacastro/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/environment.Rdata")
+load("C:/Users/Francisca/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/environment.Rdata")
+
 ```
 
+<br>
+
+# Data exploration
+
+Mean demographic values by treatment assignment of the following
+variables:
+
+-   `race`: 1 = white
+
+-   `gender4`: 1 = male
+
+-   `BGU_knowledge1` to `BGU_knowledge6` for political knowledge (**this
+    has to be constructed**)
+
+-   `BGU_Trumpapproval`: from 1 = strongly approve to 5 = strongly
+    disapprove
+
+-   `CC21_330a` ideology from 1 = very liberal to 7 = very conservative
+
+-   `pid3` party identification with the following categories: 1 =
+    democrat 2 = republican 3 = independent
+
+-   `faminc_new`
+
+-   `educ`
+
+It's necessary to construct the variable for political knowledge
+
+```{r}
+summary_stats <- data_raw %>%
+  group_by(BGU_group) %>%
+  summarize(
+    mean_race_white = round(mean(race == 1, na.rm = TRUE), 2),
+    mean_gender_male = round(mean(gender4 == 1, na.rm = TRUE), 2),
+    mean_trump_approve = round(mean(BGU_Trumpapproval %in% c(1, 2), na.rm = TRUE), 2), # strongly and somewhat approve
+    mean_ideology = round(mean(ifelse(CC21_330a %in% 1:7, CC21_330a, NA), na.rm = TRUE), 2), # excluding 8 Not sure
+    mean_party_dem = round(mean(pid3 == 1, na.rm = TRUE), 2), #democrat
+    mean_party_rep = round(mean(pid3 == 2, na.rm = TRUE), 2), #republican
+    mean_faminc = round(mean(faminc_new, na.rm = TRUE), 2),
+    mean_educ = round(mean(educ, na.rm = TRUE), 2))
+
+# Transform to wide format to make the table
+
+summary_stats_wide <- summary_stats %>%
+  pivot_longer(cols = -BGU_group,
+               names_to = "metric",
+               values_to = "value") %>%
+  pivot_wider(names_from = BGU_group,
+              values_from = value) %>%
+  mutate(metric = c("White", "Male", "Trump Approval", "Ideology", "Democrat", 
+                    "Republican", "Income", "Education")) %>%
+  rename("Variable" = 1,
+         "Control" = 2,
+         "Trump Liberal" = 3,
+         "Trump Conservative" = 4,
+         "Close Friend Liberal" = 5,
+         "Close Friend Conservative" = 6)
+
+
+table <- summary_stats_wide %>%
+  kable("html", booktabs = TRUE) %>%
+  kable_styling(full_width = FALSE, position = "center") %>%
+  column_spec(1:ncol(summary_stats_wide), width = "4cm")
+
+table_latex <- summary_stats_wide %>%
+  kable("latex", booktabs = TRUE) %>%
+  kable_styling(full_width = FALSE, position = "center") %>%
+  column_spec(1:ncol(summary_stats_wide), width = "3cm")
+
+table
+print(table_latex)
+```
+
+<br>
 
 # Preliminary analyses
 
-Assess the effect of the treatment of different policy positions.
+## With long database
+
+Assessing the effect of the treatment on policy positions.
 
 ```{r}
 models_initial <- list(
@@ -28,6 +120,292 @@ msummary(models_initial,
          stars = c('*' = .1, '**' = .05, '***' = .01))
 
 ```
+
+## With wide database
+
+Assesing the effect of the treatment on policy positions *for each
+topic*.
+
+```{r}
+models_initial_w <- list(
+  "Wages" = lm(minimum_wage ~ BGU_group, data = data_wide),
+  "Taxes" = lm(taxes ~ BGU_group, data = data_wide),
+  "Abortion" = lm(abortion ~ BGU_group, data = data_wide),
+  "Immigration" = lm(immigration ~ BGU_group, data = data_wide),
+  "Guns" = lm(guns ~ BGU_group, data = data_wide),
+  "Health Care" = lm(health ~ BGU_group, data = data_wide),
+  "Background Checks" = lm(b_checks ~ BGU_group, data = data_wide),
+  "Climate Change" = lm(climate ~ BGU_group, data = data_wide),
+  "Planned Parenthood" = lm(p_parent ~ BGU_group, data = data_wide))
+
+
+msummary(models_initial_w,
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         output = 'latex')
+
+```
+
+Filtered results for the paper
+
+```{r}
+models_filtered <- list(
+  "Immigration" = lm(immigration ~ BGU_group, data = data_wide),
+  "Background \n Checks" = lm(b_checks ~ BGU_group, data = data_wide))
+
+
+msummary(models_filtered,
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         output = "latex")
+```
+
+
+# Interactions
+
+Interactions between:
+- Treatment (close friend) and political knowledge $\rightarrow$ `knowledge_index`
+- Treatment (close friend) and ideology $\rightarrow$ `ideology` and `party_id`
+- Treatment (close friend) and social conformism (when they value conformity over autonomy in how they think and behave) $\rightarrow$ `SCI`
+
+
+## Political knowledge
+
+```{r}
+pol_knowledge_interaction <- list(
+  "Wages" = lm(minimum_wage ~ BGU_group * knowledge_index, data = data_wide),
+  "Taxes" = lm(taxes ~ BGU_group * knowledge_index, data = data_wide),
+  "Abortion" = lm(abortion ~ BGU_group * knowledge_index, data = data_wide),
+  "Immigration" = lm(immigration ~ BGU_group * knowledge_index, data = data_wide),
+  "Guns" = lm(guns ~ BGU_group * knowledge_index, data = data_wide),
+  "Health Care" = lm(health ~ BGU_group * knowledge_index, data = data_wide),
+  "Background Checks" = lm(b_checks ~ BGU_group * knowledge_index, data = data_wide),
+  "Climate Change" = lm(climate ~ BGU_group * knowledge_index, data = data_wide),
+  "Planned Parenthood" = lm(p_parent ~ BGU_group * knowledge_index, data = data_wide)
+)
+
+msummary(pol_knowledge_interaction,
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         output = 'markdown')
+```
+
+
+Relevant interactions: Background checks
+
+```{r}
+model_bchecks <- lm(b_checks ~ BGU_group * knowledge_index, data = data_wide)
+effects_TL_bchecks <- ggpredict(model_bchecks, terms = c("knowledge_index", "BGU_group[TL]"))
+effects_TC_bchecks <- ggpredict(model_bchecks, terms = c("knowledge_index", "BGU_group[TC]"))
+
+effects_bchecks <- rbind(transform(effects_TL_bchecks, treatment = "TL"),
+                       transform(effects_TC_bchecks, treatment = "TC"))
+
+effects_bchecks$treatment <- factor(effects_bchecks$treatment, 
+                                  levels = c("TC", "TL"), 
+                                  labels = c("Conservative", "Liberal"))
+
+bchecks_plot <- ggplot(effects_bchecks, aes(x = x, y = predicted, color = treatment)) +
+  geom_line(aes(group = treatment), size = 1, show.legend = FALSE) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), 
+              alpha = 0.2, show.legend = FALSE) +
+  labs(y = "Background Check Policy Position") +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),     
+        axis.title.y = element_text(size = 14))     
+
+bchecks_plot
+```
+
+## Ideology
+
+```{r}
+ideology_interaction <- list(
+  "Wages" = lm(minimum_wage ~ BGU_group * ideology, data = data_wide),
+  "Taxes" = lm(taxes ~ BGU_group * ideology, data = data_wide),
+  "Abortion" = lm(abortion ~ BGU_group * ideology, data = data_wide),
+  "Immigration" = lm(immigration ~ BGU_group * ideology, data = data_wide),
+  "Guns" = lm(guns ~ BGU_group * ideology, data = data_wide),
+  "Health Care" = lm(health ~ BGU_group * ideology, data = data_wide),
+  "Background Checks" = lm(b_checks ~ BGU_group * ideology, data = data_wide),
+  "Climate Change" = lm(climate ~ BGU_group * ideology, data = data_wide),
+  "Planned Parenthood" = lm(p_parent ~ BGU_group * ideology, data = data_wide))
+
+msummary(ideology_interaction,
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         output = 'markdown')
+```
+
+## Party identification
+
+```{r}
+party_id_interaction <- list(
+  "Wages" = lm(minimum_wage ~ BGU_group * party_id, data = data_wide),
+  "Taxes" = lm(taxes ~ BGU_group * party_id, data = data_wide),
+  "Abortion" = lm(abortion ~ BGU_group * party_id, data = data_wide),
+  "Immigration" = lm(immigration ~ BGU_group * party_id, data = data_wide),
+  "Guns" = lm(guns ~ BGU_group * party_id, data = data_wide),
+  "Health Care" = lm(health ~ BGU_group * party_id, data = data_wide),
+  "Background Checks" = lm(b_checks ~ BGU_group * party_id, data = data_wide),
+  "Climate Change" = lm(climate ~ BGU_group * party_id, data = data_wide),
+  "Planned Parenthood" = lm(p_parent ~ BGU_group * party_id, data = data_wide))
+
+msummary(party_id_interaction,
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         output = 'markdown')
+```
+
+Taxes x TL/CFL
+
+```{r}
+model_taxes <- lm(taxes ~ BGU_group * party_id, data = data_wide)
+effects_TL_taxes <- ggpredict(model_taxes, terms = c("party_id", "BGU_group[TL]"))
+effects_TC_taxes <- ggpredict(model_taxes, terms = c("party_id", "BGU_group[TC]"))
+effects_CFL_taxes <- ggpredict(model_taxes, terms = c("party_id", "BGU_group[CFL]"))
+effects_CFC_taxes <- ggpredict(model_taxes, terms = c("party_id", "BGU_group[CFC]"))
+
+effects_taxes <- rbind(transform(effects_TL_taxes, treatment = "TL"),
+                       transform(effects_TC_taxes, treatment = "TC"),
+                       transform(effects_CFL_taxes, treatment = "CFL"),
+                       transform(effects_CFC_taxes, treatment = "CFC"))
+
+effects_taxes$treatment <- factor(effects_taxes$treatment, 
+                                  levels = c("TL", "TC", "CFL", "CFC"), 
+                                  labels = c("Trump Liberal", "Trump Conservative",
+                                  "Close Friend Liberal", "Close Friend Conservative"))
+
+taxes_plot <- ggplot(effects_taxes, aes(x = x, y = predicted)) +
+  geom_point(aes(color = group), size = 3, position = position_dodge(width = 0.5)) + 
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high, color = group), 
+                width = 0.2, position = position_dodge(width = 0.5)) +
+  labs(y = "Predicted Value", x = "Party Position") +
+  theme_minimal() +
+  theme(axis.title.x = element_text(size = 14))
+
+
+taxes_plot
+```
+
+## Social conformism
+
+
+Interaction between SCI and treatment
+
+```{r}
+sci_interaction <- list(
+  "Wages" = lm(minimum_wage ~ BGU_group * SCI, data = data_wide),
+  "Taxes" = lm(taxes ~ BGU_group * SCI, data = data_wide),
+  "Abortion" = lm(abortion ~ BGU_group * SCI, data = data_wide),
+  "Immigration" = lm(immigration ~ BGU_group * SCI, data = data_wide),
+  "Guns" = lm(guns ~ BGU_group * SCI, data = data_wide),
+  "Health Care" = lm(health ~ BGU_group * SCI, data = data_wide),
+  "Background Checks" = lm(b_checks ~ BGU_group * SCI, data = data_wide),
+  "Climate Change" = lm(climate ~ BGU_group * SCI, data = data_wide),
+  "Planned Parenthood" = lm(p_parent ~ BGU_group * SCI, data = data_wide)
+)
+
+msummary(sci_interaction,
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         output = 'markdown')
+```
+
+The interaction is only significative for the Trump prompt, for selected models.
+Therefore, I'll only create interactions for selected models.
+
+For BGU_groupTL × SCI, only wages
+For BGU_groupTC × SCI, only guns and healthcare
+
+
+- Treatment × SCI for wages
+```{r}
+model_wages <- lm(minimum_wage ~ BGU_group * SCI, data = data_wide)
+effects_TL_wages <- ggpredict(model_wages, terms = c("SCI", "BGU_group[TL]"))
+effects_TC_wages <- ggpredict(model_wages, terms = c("SCI", "BGU_group[TC]"))
+
+effects_wages <- rbind(transform(effects_TL_wages, treatment = "TL"),
+                       transform(effects_TC_wages, treatment = "TC"))
+
+effects_wages$treatment <- factor(effects_wages$treatment, 
+                                  levels = c("TC", "TL"), 
+                                  labels = c("Conservative", "Liberal"))
+
+wages_plot <- ggplot(effects_wages, aes(x = x, y = predicted, color = treatment)) +
+  geom_line(aes(group = treatment), size = 1, show.legend = FALSE) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), 
+              alpha = 0.2, show.legend = FALSE) +
+  labs(y = "Wage Policy Position") +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),     
+        axis.title.y = element_text(size = 14))     
+
+wages_plot
+```
+
+Guns
+```{r}
+model_guns <- lm(guns ~ BGU_group * SCI, data = data_wide)
+effects_TL_guns <- ggpredict(model_guns, terms = c("SCI", "BGU_group[TL]"))
+effects_TC_guns <- ggpredict(model_guns, terms = c("SCI", "BGU_group[TC]"))
+
+effects_guns <- rbind(transform(effects_TL_guns, treatment = "TL"),
+                       transform(effects_TC_guns, treatment = "TC"))
+
+effects_guns$treatment <- factor(effects_guns$treatment, 
+                                  levels = c("TC", "TL"), 
+                                  labels = c("Conservative", "Liberal"))
+
+guns_plot <- ggplot(effects_guns, aes(x = x, y = predicted, color = treatment)) +
+  geom_line(aes(group = treatment), size = 1, show.legend = FALSE) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), 
+              alpha = 0.2, show.legend = FALSE) +
+  labs(y = "Guns Policy Position") +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_text(size = 14))     
+
+
+guns_plot
+```
+
+
+Healthcare
+
+```{r}
+model_health <- lm(health ~ BGU_group * SCI, data = data_wide)
+effects_TL_health <- ggpredict(model_health, terms = c("SCI", "BGU_group[TL]"))
+effects_TC_health <- ggpredict(model_health, terms = c("SCI", "BGU_group[TC]"))
+
+effects_health <- rbind(transform(effects_TL_health, treatment = "TL"),
+                       transform(effects_TC_health, treatment = "TC"))
+
+effects_health$treatment <- factor(effects_health$treatment, 
+                                  levels = c("TC", "TL"), 
+                                  labels = c("Conservative", "Liberal"))
+
+health_plot <- ggplot(effects_health, aes(x = x, y = predicted, color = treatment)) +
+  geom_line(aes(group = treatment), size = 1) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), alpha = 0.2) +
+  labs(x = "Social Conformism Index (SCI)",
+       y = "Health Care Policy Position",
+       color = "Treatment",
+       fill = "Treatment") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        axis.title.x = element_text(size = 14),       # Adjust the size as needed
+        axis.title.y = element_text(size = 14),       # Adjust the size as needed
+        legend.text = element_text(size = 12))        # Adjust the size as needed
+
+
+health_plot
+```
+
+Join the plots
+
+```{r}
+interaction_SCI <- grid.arrange(wages_plot, guns_plot, health_plot, ncol = 1)
+
+ggsave("interaction_SCI.png", interaction_SCI, width = 7, height = 15, dpi = 300)
+```
+
+
+
 
 
 
