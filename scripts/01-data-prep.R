@@ -4,7 +4,7 @@
 
 # 1) Load packages
 
-pacman::p_load(haven, dplyr, tidyr, magrittr, forcats)
+pacman::p_load(haven, dplyr, tidyr, magrittr, forcats, ggplot2, psych, xtable)
 
 # 2) Load data
 
@@ -214,9 +214,27 @@ data_wide %<>%
 
 data_wide$knowledge_index <- as.numeric(data_wide$knowledge_index)
 
-### Ideology and party if
+table(data_wide$knowledge_index)
 
-table(data_wide$CC21_330a) # 8 is not sure so drop it
+#### Plot for the appendix
+
+pol_knowledge_plot <- data_wide %>%
+  count(knowledge_index) %>%
+  ggplot(aes(x = knowledge_index, y = n)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Number of Correct Answers",
+       y = "Number of Observations") +
+  scale_x_continuous(breaks = seq(min(data_wide$knowledge_index), max(data_wide$knowledge_index), by = 1)) +
+  scale_y_continuous(limits = c(0, 250)) +  
+  theme_minimal()
+
+ggsave("pol_knowledge.png", pol_knowledge_plot, width = 8, height = 6, dpi = 600)
+
+
+### Ideology and party id
+
+table(data_wide$CC21_330a) # 1 very liberal 7 very conservative
+                            # 8 is 'not sure" so it'll be dropped
 
 data_wide %<>%
   mutate(ideology = ifelse(CC21_330a == 8, NA, CC21_330a))
@@ -239,7 +257,7 @@ data_wide %<>%
 #- BGU_conf3 Obeying the rules and fitting in are signs of a strong and healthy society.
 #- BGU_conf4 People who continually emphasize the need for unity will only limit creativity and hurt our society.
 #- BGU_conf5 We should admire people who go their own way without worrying about what others think.
-#- BGU_conf1 People need to learn to fit in and get along with others.
+#- BGU_conf6 People need to learn to fit in and get along with others.
 
 #1   Strongly agree
 #2   Agree
@@ -252,7 +270,7 @@ data_wide %<>%
 
 #Questions that need to be reordered: BGU_conf2, BGU_conf4, and BGU_conf5
 
-#Additionally, neither aggree nor disaggree and don't know will be mixed in the same one. New categories will be:
+#Additionally, neither agree nor disagree and don't know will be mixed in the same one. New categories will be:
 #1. Strongly disagree (low social conformism) - 4 and 5
 #2. Don't know/neither agree or disagree - 9 and 3
 #3. Agree/strongly agree (high social conformism) - 2 and 1
@@ -260,49 +278,68 @@ data_wide %<>%
 data_wide %<>%
   mutate(
     BGU_conf1_rec = recode(BGU_conf1, 
-                           `4` = 1, `5` = 1,  #agree/strongly agree (high SC)
+                           `1` = 3, `2` = 3,  #agree/strongly agree (high SC)
                            `3` = 2, `9` = 2,  #don't know, neither
-                           `2` = 3, `1` = 3), #disagree/strongly disagree (low SC)
+                           `4` = 1, `5` = 1), #disagree/strongly disagree (low SC)
     
     BGU_conf2_rec = recode(BGU_conf2, 
-                           `2` = 1, `1` = 1,  #agree/strongly agree (high SC)
+                           `1` = 1, `2` = 1,  #agree/strongly agree (low SC)
                            `3` = 2, `9` = 2,  #don't know, neither
-                           `4` = 3, `5` = 3), #disagree/strongly disagree (low SC)
+                           `4` = 3, `5` = 3), #disagree/strongly disagree (high SC)
     
     BGU_conf3_rec = recode(BGU_conf3, 
-                           `4` = 1, `5` = 1,  #agree/strongly agree (high SC)
+                           `1` = 3, `2` = 3,  #agree/strongly agree (high SC)
                            `3` = 2, `9` = 2,  #don't know, neither
-                           `2` = 3, `1` = 3), #disagree/strongly disagree (low SC)
+                           `4` = 1, `5` = 1), #disagree/strongly disagree (low SC)
     
     BGU_conf4_rec = recode(BGU_conf4, 
-                           `2` = 1, `1` = 1,  #agree/strongly agree (high SC)
+                           `1` = 1, `2` = 1,  #agree/strongly agree (low SC)
                            `3` = 2, `9` = 2,  #don't know, neither
-                           `4` = 3, `5` = 3), #disagree/strongly disagree (low SC)
+                           `4` = 3, `5` = 3), #disagree/strongly disagree (high SC)
     
     BGU_conf5_rec = recode(BGU_conf5, 
-                           `4` = 1, `5` = 1,  #agree/strongly agree (high SC)
+                           `1` = 1, `2` = 1,  #agree/strongly agree (low SC)
                            `3` = 2, `9` = 2,  #don't know, neither
-                           `2` = 3, `1` = 3), #disagree/strongly disagree (low SC)
+                           `4` = 3, `5` = 3), #disagree/strongly disagree (high SC)
     
     BGU_conf6_rec = recode(BGU_conf6, 
-                           `2` = 1, `1` = 1,  #agree/strongly agree (high SC)
+                           `1` = 3, `2` = 3,  #agree/strongly agree (high SC)
                            `3` = 2, `9` = 2,  #don't know, neither
-                           `4` = 3, `5` = 3)  #disagree/strongly disagree (low SC)
-  )
+                           `4` = 1, `5` = 1))  #disagree/strongly disagree (low SC)
 
 table(data_wide$BGU_conf6_rec) #validation
 
-### Creation of the social conformism index (SCI)
+### Test for Cronbach's alpha
+
+items_sci_full <- data_wide %>% 
+  select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf4_rec, BGU_conf5_rec, BGU_conf6_rec)
+
+items_sci <- data_wide %>% 
+  select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf5_rec, BGU_conf6_rec)
+####The 4th item was removed, reliability of the index is better without it
+
+ca_sci <- alpha(items_sci, check.keys=TRUE)
+ca_sci2 <- alpha(items_sci_full, check.keys=TRUE)
+print(ca_sci)
+
+
+####Get a latex output
+item_stats <- as.data.frame(ca_sci$item.stats)
+item_stats2 <- as.data.frame(ca_sci2$item.stats)
+
+latex_table_items <- xtable(item_stats)
+latex_table_items2 <- xtable(item_stats2)
+print(latex_table_items, type = 'latex') 
+print(latex_table_items2, type = 'latex') 
+
+### Creation of the social conformism index (SCI) as a composite score
 
 data_wide %<>%
   rowwise() %>%
-  mutate(SCI = round(mean(c(BGU_conf1_rec, 
-                            BGU_conf2_rec, BGU_conf3_rec, 
-                            BGU_conf4_rec, BGU_conf5_rec, BGU_conf6_rec), 
-                          na.rm = TRUE), 2))
+  mutate(SCI = mean(c_across(c(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf5_rec, BGU_conf6_rec)), na.rm = TRUE)) %>%
+  ungroup()
 
 table(data_wide$SCI)
-
 
 # Save data
 ### Mac

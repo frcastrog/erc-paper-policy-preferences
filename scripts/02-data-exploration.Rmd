@@ -27,7 +27,6 @@ pacman::p_load(modelsummary, pwr, survey, broom, dplyr, tidyr, knitr, kableExtra
 ```{r}
 #load("/Users/franciscacastro/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/environment.Rdata")
 load("C:/Users/Francisca/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/environment.Rdata")
-
 ```
 
 <br>
@@ -41,8 +40,7 @@ variables:
 
 -   `gender4`: 1 = male
 
--   `BGU_knowledge1` to `BGU_knowledge6` for political knowledge (**this
-    has to be constructed**)
+-   `BGU_knowledge1` to `BGU_knowledge6` for political knowledge
 
 -   `BGU_Trumpapproval`: from 1 = strongly approve to 5 = strongly
     disapprove
@@ -55,8 +53,6 @@ variables:
 -   `faminc_new`
 
 -   `educ`
-
-It's necessary to construct the variable for political knowledge
 
 ```{r}
 summary_stats <- data_raw %>%
@@ -100,7 +96,6 @@ table_latex <- summary_stats_wide %>%
   column_spec(1:ncol(summary_stats_wide), width = "3cm")
 
 table
-print(table_latex)
 ```
 
 <br>
@@ -118,7 +113,6 @@ models_initial <- list(
 
 msummary(models_initial,
          stars = c('*' = .1, '**' = .05, '***' = .01))
-
 ```
 
 ## With wide database
@@ -141,7 +135,7 @@ models_initial_w <- list(
 
 msummary(models_initial_w,
          stars = c('*' = .1, '**' = .05, '***' = .01),
-         output = 'latex')
+         output = 'markdown')
 
 ```
 
@@ -158,14 +152,19 @@ msummary(models_filtered,
          output = "latex")
 ```
 
-
 # Interactions
 
 Interactions between:
-- Treatment (close friend) and political knowledge $\rightarrow$ `knowledge_index`
-- Treatment (close friend) and ideology $\rightarrow$ `ideology` and `party_id`
-- Treatment (close friend) and social conformism (when they value conformity over autonomy in how they think and behave) $\rightarrow$ `SCI`
 
+-   Treatment (close friend) and political knowledge $\rightarrow$
+    `knowledge_index`
+
+-   Treatment (close friend) and ideology $\rightarrow$ `ideology` and
+    `party_id`
+
+-   Treatment (close friend) and social conformism (when they value
+    conformity over autonomy in how they think and behave) $\rightarrow$
+    `SCI`
 
 ## Political knowledge
 
@@ -187,10 +186,9 @@ msummary(pol_knowledge_interaction,
          output = 'markdown')
 ```
 
+### Relevant interactions: Background checks-Trump cue
 
-Relevant interactions: Background checks
-
-```{r}
+```{r message=FALSE, warning=FALSE}
 model_bchecks <- lm(b_checks ~ BGU_group * knowledge_index, data = data_wide)
 effects_TL_bchecks <- ggpredict(model_bchecks, terms = c("knowledge_index", "BGU_group[TL]"))
 effects_TC_bchecks <- ggpredict(model_bchecks, terms = c("knowledge_index", "BGU_group[TC]"))
@@ -206,12 +204,38 @@ bchecks_plot <- ggplot(effects_bchecks, aes(x = x, y = predicted, color = treatm
   geom_line(aes(group = treatment), size = 1, show.legend = FALSE) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), 
               alpha = 0.2, show.legend = FALSE) +
-  labs(y = "Background Check Policy Position") +
+  labs(y = "Background Checks Position", x = "Political Knowledge") +
   theme_minimal() +
-  theme(axis.title.x = element_blank(),     
-        axis.title.y = element_text(size = 14))     
+  theme(#axis.title.x = element_blank(),     
+        axis.title.y = element_text(size = 14))      
 
 bchecks_plot
+```
+
+
+### Relevant interactions: Climate change-Close friend cue
+```{r message=FALSE, warning=FALSE}
+model_climate <- lm(climate ~ BGU_group * knowledge_index, data = data_wide)
+effects_CFL_climate <- ggpredict(model_climate, terms = c("knowledge_index", "BGU_group[CFL]"))
+effects_CFC_climate <- ggpredict(model_climate, terms = c("knowledge_index", "BGU_group[CFC]"))
+
+effects_climate <- rbind(transform(effects_CFL_climate, treatment = "CFL"),
+                         transform(effects_CFC_climate, treatment = "CFC"))
+
+effects_climate$treatment <- factor(effects_climate$treatment, 
+                                  levels = c("CFC", "CFL"), 
+                                  labels = c("CF Conservative", "CF Liberal"))
+
+climate_plot <- ggplot(effects_climate, aes(x = x, y = predicted, color = treatment)) +
+  geom_line(aes(group = treatment), size = 1, show.legend = FALSE) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), 
+              alpha = 0.2, show.legend = TRUE) +
+  labs(y = "Climate Change Position", x = "Political Knowledge") +
+  theme_minimal() +
+  theme(#axis.title.x = element_blank(),     
+        axis.title.y = element_text(size = 14))     
+
+climate_plot
 ```
 
 ## Ideology
@@ -247,12 +271,62 @@ party_id_interaction <- list(
   "Climate Change" = lm(climate ~ BGU_group * party_id, data = data_wide),
   "Planned Parenthood" = lm(p_parent ~ BGU_group * party_id, data = data_wide))
 
-msummary(party_id_interaction,
+party_id_interaction1 <- list(
+  "Wages" = lm(minimum_wage ~ BGU_group * party_id, data = data_wide))
+
+msummary(party_id_interaction1,
          stars = c('*' = .1, '**' = .05, '***' = .01),
-         output = 'markdown')
+         output = 'latex')
 ```
 
-Taxes x TL/CFL
+### Wages and treatments
+
+```{r}
+model_wages_pid <- lm(minimum_wage ~ BGU_group * party_id, data = data_wide)
+effects_TL_wages_pid <- ggpredict(model_wages_pid, terms = c("party_id", "BGU_group[TL]"))
+effects_TC_wages_pid <- ggpredict(model_wages_pid, terms = c("party_id", "BGU_group[TC]"))
+effects_CFL_wages_pid <- ggpredict(model_wages_pid, terms = c("party_id", "BGU_group[CFL]"))
+effects_CFC_wages_pid <- ggpredict(model_wages_pid, terms = c("party_id", "BGU_group[CFC]"))
+
+effects_wages_pid <- rbind(transform(effects_TL_wages_pid, treatment = "TL"),
+                       transform(effects_TC_wages_pid, treatment = "TC"),
+                       transform(effects_CFL_wages_pid, treatment = "CFL"),
+                       transform(effects_CFC_wages_pid, treatment = "CFC"))
+
+effects_wages_pid$treatment <- factor(effects_wages_pid$treatment, 
+                                  levels = c("TL", "TC", "CFL", "CFC"), 
+                                  labels = c("Trump Liberal", "Trump Conservative",
+                                  "Close Friend Liberal", "Close Friend Conservative"))
+
+wages_pid_plot <- ggplot(effects_wages_pid, aes(x = x, y = predicted)) +
+  geom_point(aes(color = group), size = 3, position = position_dodge(width = 0.5)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high, color = group),
+                width = 0.2, position = position_dodge(width = 0.5)) +
+  labs(y = "Minimum Wages Policy Position", color = "Treatment") +  
+  scale_x_discrete(labels=c("democrat" = "Democrat", 
+                            "independent/other" = "Independent/Other", 
+                            "republican" = "Republican")) + 
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),
+        legend.position = "bottom") +
+  scale_y_continuous(limits = c(-0.5, NA))  +
+  scale_color_manual(values = c("TL" = "#4C4C4C", "CFL" = "#A0A0A0", 
+                                "TC" = "#787878", "CFC" = "#D0D0D0")) 
+
+
+wages_pid_plot
+```
+I really like this plot and I think is a candidate to put in the paper. Although it's a little bit weird that the CF Liberal prompt makes people more conservative.
+
+Have in mind that the phrasing of the question is the following: To increase the minimum wage to over 10 USD an hour. A close friend of yours has expressed support for this policy. How about you? Do you support or oppose increasing the minimum wage to over 10 USD an hour?
+
+
+```{r}
+ggsave("wages_party_id.png", wages_pid_plot, width = 4, height = 4, dpi = 300)
+```
+
+
+### Taxes and treatments
 
 ```{r}
 model_taxes <- lm(taxes ~ BGU_group * party_id, data = data_wide)
@@ -275,7 +349,7 @@ taxes_plot <- ggplot(effects_taxes, aes(x = x, y = predicted)) +
   geom_point(aes(color = group), size = 3, position = position_dodge(width = 0.5)) + 
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high, color = group), 
                 width = 0.2, position = position_dodge(width = 0.5)) +
-  labs(y = "Predicted Value", x = "Party Position") +
+  labs(y = "Taxes Policy Position", x = "Party Position") +
   theme_minimal() +
   theme(axis.title.x = element_text(size = 14))
 
@@ -284,7 +358,6 @@ taxes_plot
 ```
 
 ## Social conformism
-
 
 Interaction between SCI and treatment
 
@@ -301,19 +374,23 @@ sci_interaction <- list(
   "Planned Parenthood" = lm(p_parent ~ BGU_group * SCI, data = data_wide)
 )
 
-msummary(sci_interaction,
+sci_interaction1 <- list(
+  "Guns" = lm(guns ~ BGU_group * SCI, data = data_wide),
+  "Health Care" = lm(health ~ BGU_group * SCI, data = data_wide))
+
+msummary(sci_interaction1,
          stars = c('*' = .1, '**' = .05, '***' = .01),
-         output = 'markdown')
+         output = 'latex')
 ```
 
-The interaction is only significative for the Trump prompt, for selected models.
-Therefore, I'll only create interactions for selected models.
+The interaction is only significative for the Trump prompt, for selected
+models. Therefore, I'll only create interactions for selected models.
 
-For BGU_groupTL × SCI, only wages
-For BGU_groupTC × SCI, only guns and healthcare
+For BGU_groupTL × SCI, only wages For BGU_groupTC × SCI, only guns and
+healthcare
 
+### Treatment × SCI for wages
 
-- Treatment × SCI for wages
 ```{r}
 model_wages <- lm(minimum_wage ~ BGU_group * SCI, data = data_wide)
 effects_TL_wages <- ggpredict(model_wages, terms = c("SCI", "BGU_group[TL]"))
@@ -326,7 +403,7 @@ effects_wages$treatment <- factor(effects_wages$treatment,
                                   levels = c("TC", "TL"), 
                                   labels = c("Conservative", "Liberal"))
 
-wages_plot <- ggplot(effects_wages, aes(x = x, y = predicted, color = treatment)) +
+wages_plot_sci <- ggplot(effects_wages, aes(x = x, y = predicted, color = treatment)) +
   geom_line(aes(group = treatment), size = 1, show.legend = FALSE) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), 
               alpha = 0.2, show.legend = FALSE) +
@@ -335,10 +412,11 @@ wages_plot <- ggplot(effects_wages, aes(x = x, y = predicted, color = treatment)
   theme(axis.title.x = element_blank(),     
         axis.title.y = element_text(size = 14))     
 
-wages_plot
+wages_plot_sci
 ```
 
-Guns
+### Guns
+
 ```{r}
 model_guns <- lm(guns ~ BGU_group * SCI, data = data_wide)
 effects_TL_guns <- ggpredict(model_guns, terms = c("SCI", "BGU_group[TL]"))
@@ -351,21 +429,24 @@ effects_guns$treatment <- factor(effects_guns$treatment,
                                   levels = c("TC", "TL"), 
                                   labels = c("Conservative", "Liberal"))
 
-guns_plot <- ggplot(effects_guns, aes(x = x, y = predicted, color = treatment)) +
+guns_plot_sci <- ggplot(effects_guns, aes(x = x, y = predicted, color = treatment)) +
   geom_line(aes(group = treatment), size = 1, show.legend = FALSE) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), 
               alpha = 0.2, show.legend = FALSE) +
   labs(y = "Guns Policy Position") +
   theme_minimal() +
   theme(axis.title.x = element_blank(),
-        axis.title.y = element_text(size = 14))     
+        axis.title.y = element_text(size = 14)) +
+  scale_color_manual(values = c("Conservative" = "black", "Liberal" = "#A0A0A0")) +
+  scale_fill_manual(values = c("Conservative" = "black", "Liberal" = "#A0A0A0"))
+           
 
 
-guns_plot
+guns_plot_sci
 ```
+This plot is also interesting, but note that -1 indicates the opposition to allowing teaching to carry guns, and 1 represents the support for it. So, in this case, people with lower levels of social conformisms are more in opposition to the policy, and people with higher levels of social conformism, more in favor of allowing teachers to carry guns. 
 
-
-Healthcare
+### Healthcare
 
 ```{r}
 model_health <- lm(health ~ BGU_group * SCI, data = data_wide)
@@ -379,7 +460,7 @@ effects_health$treatment <- factor(effects_health$treatment,
                                   levels = c("TC", "TL"), 
                                   labels = c("Conservative", "Liberal"))
 
-health_plot <- ggplot(effects_health, aes(x = x, y = predicted, color = treatment)) +
+health_plot_sci <- ggplot(effects_health, aes(x = x, y = predicted, color = treatment)) +
   geom_line(aes(group = treatment), size = 1) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), alpha = 0.2) +
   labs(x = "Social Conformism Index (SCI)",
@@ -388,24 +469,23 @@ health_plot <- ggplot(effects_health, aes(x = x, y = predicted, color = treatmen
        fill = "Treatment") +
   theme_minimal() +
   theme(legend.position = "bottom",
-        axis.title.x = element_text(size = 14),       # Adjust the size as needed
-        axis.title.y = element_text(size = 14),       # Adjust the size as needed
-        legend.text = element_text(size = 12))        # Adjust the size as needed
+        axis.title.x = element_text(size = 14),       
+        axis.title.y = element_text(size = 14),     
+        legend.text = element_text(size = 12)) +
+  scale_color_manual(values = c("Conservative" = "black", "Liberal" = "#A0A0A0")) +
+  scale_fill_manual(values = c("Conservative" = "black", "Liberal" = "#A0A0A0"))
+       
+ 
 
-
-health_plot
+health_plot_sci
 ```
+
+<!-- I also like this one --> 
 
 Join the plots
 
 ```{r}
-interaction_SCI <- grid.arrange(wages_plot, guns_plot, health_plot, ncol = 1)
+interaction_SCI <- grid.arrange(guns_plot_sci, health_plot_sci, ncol = 1, heights = c(1, 1.2)) 
 
-ggsave("interaction_SCI.png", interaction_SCI, width = 7, height = 15, dpi = 300)
+ggsave("interaction_SCI.png", interaction_SCI, width = 6, height = 8, dpi = 600)
 ```
-
-
-
-
-
-
