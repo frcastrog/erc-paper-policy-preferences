@@ -18,7 +18,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r message=FALSE, warning=FALSE}
 pacman::p_load(modelsummary, pwr, survey, broom, dplyr, tidyr, knitr, kableExtra, gt,
-               rstatix, ggeffects, ggplot2, gridExtra, magrittr, xtable)
+               rstatix, ggeffects, ggplot2, gridExtra, magrittr, xtable, psych)
 ```
 
 # Open data
@@ -79,7 +79,6 @@ ate_plot <- ggplot(ate_m1, aes(x = term, y = estimate)) +
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_blank())
-
 
 ate_plot
 
@@ -254,26 +253,9 @@ ggsave("C:/Users/Francisca/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/outp
 ```
 
 
-# Tables 
-
-## Table 1 - Selected policy issues
-
-```{r}
-models_pol_issues_sig <- list(
-  "Taxes" = lm(policy_opinion ~ male + pid3 + treatment_group, data = data_long[data_long$policy_issue == 2, ]),
-  "Immigration" = lm(policy_opinion ~ male + pid3 + treatment_group, data = data_long[data_long$policy_issue == 4, ]),
-  "Background Checks" = lm(policy_opinion ~ male + pid3 + treatment_group, data = data_long[data_long$policy_issue == 7, ]))
-
-msummary(models_pol_issues_sig,
-         stars = c('*' = .1, '**' = .05, '***' = .01),
-         output = 'markdown')
-```
-
-
-
 # Supplementary Information
 
-## Table 1 - Balance across conditions
+## Table B1.1 - Mean Demographic Values by Treatment Group
 
 ```{r}
 data_balance <- data_long[data_long$policy_position == "1",]
@@ -347,33 +329,34 @@ latex_table <- kable(descriptive_stats_long, format = "latex", booktabs = TRUE)
 descriptive_stats_long
 ```
 
-## Table - Social conformism
+## Table B2.1 - Test for Cronbach's alpha
 
 ```{r}
-####Get a latex output
-item_stats <- as.data.frame(ca_sci$item.stats)
-item_stats2 <- as.data.frame(ca_sci2$item.stats)
+items_sci_full <- data_long %>% 
+  select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf4_rec, BGU_conf5_rec, BGU_conf6_rec)
 
-latex_table_items <- xtable(item_stats)
-latex_table_items2 <- xtable(item_stats2)
-print(latex_table_items, type = 'latex') 
-print(latex_table_items2, type = 'latex') 
+ca_sci <- alpha(items_sci_full, check.keys=TRUE)
+print(ca_sci)
 ```
 
+```{r eval=FALSE}
+item_stats <- as.data.frame(ca_sci$item.stats)
+latex_table_items <- xtable(item_stats)
+print(latex_table_items, type = 'latex') 
+```
 
-## Table - Full models
+## Table C1.1 Average Treatment Effect of Policy Cue
 
 ```{r}
-policy_support <- list(
-  "Policy Support" = lm(policy_opinion ~ male + pid3 + treatment_group, data = data_long))
-
-msummary(policy_support,
+msummary(model1,
+         title = "Average Treatment Effect of Policy Cue",
          stars = c('*' = .1, '**' = .05, '***' = .01),
+         estimate = "{estimate}{stars} ({std.error})",
+         statistic = NULL,
          output = 'markdown')
 ```
 
-
-## Table - Treatment effect per policy issues
+## Table C1.2 - Treatment effect per policy issues
 
 ```{r}
 models_pol_issues <- list(
@@ -392,8 +375,45 @@ msummary(models_pol_issues,
          output = 'markdown')
 ```
 
+## Interactions
 
-## Figure - Distribution political knowledge
+### Table C3.1 With Party ID
+
+```{r}
+msummary(model2,
+         title = "Interaction with Party Identification",
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         estimate = "{estimate}{stars} ({std.error})",
+         statistic = NULL,
+         output = 'markdown')
+```
+
+### Table C3.2 With Political Knowledge
+
+```{r}
+msummary(model3,
+         title = "Interaction with Political Knowledge",
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         estimate = "{estimate}{stars} ({std.error})",
+         statistic = NULL,
+         output = 'markdown')
+```
+
+### Table C3.3 With Social Conformism
+
+```{r}
+msummary(model_4,
+         title = "Interaction with Social Conformism Index",
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         estimate = "{estimate}{stars} ({std.error})",
+         statistic = NULL,
+         output = 'markdown')
+```
+
+
+# Figures
+
+## Figure 1 - Distribution political knowledge
 
 ```{r}
 pol_knowledge_plot <- data_long[data_long$policy_issue == 1, ] %>%

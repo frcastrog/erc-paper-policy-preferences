@@ -382,7 +382,7 @@ display: none;
 <div id="load-packages" class="section level1">
 <h1>Load packages</h1>
 <pre class="r"><code>pacman::p_load(modelsummary, pwr, survey, broom, dplyr, tidyr, knitr, kableExtra, gt,
-               rstatix, ggeffects, ggplot2, gridExtra, magrittr, xtable)</code></pre>
+               rstatix, ggeffects, ggplot2, gridExtra, magrittr, xtable, psych)</code></pre>
 </div>
 <div id="open-data" class="section level1">
 <h1>Open data</h1>
@@ -439,7 +439,6 @@ ate_plot &lt;- ggplot(ate_m1, aes(x = term, y = estimate)) +
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_blank())
-
 
 ate_plot</code></pre>
 <p><img src="data:image/png;base64,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" width="672" /></p>
@@ -612,176 +611,10 @@ m4_plot_cf</code></pre>
        m4_plot_final, width = 3.5, height = 7, dpi = 600)</code></pre>
 </div>
 </div>
-<div id="tables" class="section level1">
-<h1>Tables</h1>
-<div id="table-1---selected-policy-issues" class="section level2">
-<h2>Table 1 - Selected policy issues</h2>
-<pre class="r"><code>models_pol_issues_sig &lt;- list(
-  &quot;Taxes&quot; = lm(policy_opinion ~ male + pid3 + treatment_group, data = data_long[data_long$policy_issue == 2, ]),
-  &quot;Immigration&quot; = lm(policy_opinion ~ male + pid3 + treatment_group, data = data_long[data_long$policy_issue == 4, ]),
-  &quot;Background Checks&quot; = lm(policy_opinion ~ male + pid3 + treatment_group, data = data_long[data_long$policy_issue == 7, ]))
-
-msummary(models_pol_issues_sig,
-         stars = c(&#39;*&#39; = .1, &#39;**&#39; = .05, &#39;***&#39; = .01),
-         output = &#39;markdown&#39;)</code></pre>
-<table>
-<thead>
-<tr class="header">
-<th align="left"></th>
-<th align="right">Taxes</th>
-<th align="right">Immigration</th>
-<th align="right">Background Checks</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="left">(Intercept)</td>
-<td align="right">0.768***</td>
-<td align="right">0.449***</td>
-<td align="right">1.040***</td>
-</tr>
-<tr class="even">
-<td align="left"></td>
-<td align="right">(0.075)</td>
-<td align="right">(0.085)</td>
-<td align="right">(0.062)</td>
-</tr>
-<tr class="odd">
-<td align="left">male</td>
-<td align="right">-0.221***</td>
-<td align="right">-0.197***</td>
-<td align="right">-0.227***</td>
-</tr>
-<tr class="even">
-<td align="left"></td>
-<td align="right">(0.051)</td>
-<td align="right">(0.058)</td>
-<td align="right">(0.043)</td>
-</tr>
-<tr class="odd">
-<td align="left">pid3</td>
-<td align="right">-0.107***</td>
-<td align="right">-0.113***</td>
-<td align="right">-0.096***</td>
-</tr>
-<tr class="even">
-<td align="left"></td>
-<td align="right">(0.022)</td>
-<td align="right">(0.024)</td>
-<td align="right">(0.018)</td>
-</tr>
-<tr class="odd">
-<td align="left">treatment_groupTL</td>
-<td align="right">0.112</td>
-<td align="right">0.206**</td>
-<td align="right">-0.056</td>
-</tr>
-<tr class="even">
-<td align="left"></td>
-<td align="right">(0.079)</td>
-<td align="right">(0.090)</td>
-<td align="right">(0.066)</td>
-</tr>
-<tr class="odd">
-<td align="left">treatment_groupTC</td>
-<td align="right">0.149*</td>
-<td align="right">0.141</td>
-<td align="right">-0.111*</td>
-</tr>
-<tr class="even">
-<td align="left"></td>
-<td align="right">(0.079)</td>
-<td align="right">(0.089)</td>
-<td align="right">(0.066)</td>
-</tr>
-<tr class="odd">
-<td align="left">treatment_groupCFL</td>
-<td align="right">0.115</td>
-<td align="right">0.028</td>
-<td align="right">0.026</td>
-</tr>
-<tr class="even">
-<td align="left"></td>
-<td align="right">(0.079)</td>
-<td align="right">(0.090)</td>
-<td align="right">(0.066)</td>
-</tr>
-<tr class="odd">
-<td align="left">treatment_groupCFC</td>
-<td align="right">0.068</td>
-<td align="right">0.063</td>
-<td align="right">-0.059</td>
-</tr>
-<tr class="even">
-<td align="left"></td>
-<td align="right">(0.080)</td>
-<td align="right">(0.090)</td>
-<td align="right">(0.067)</td>
-</tr>
-<tr class="odd">
-<td align="left">:——————-</td>
-<td align="right">———-:</td>
-<td align="right">————:</td>
-<td align="right">——————:</td>
-</tr>
-<tr class="even">
-<td align="left">Num.Obs.</td>
-<td align="right">1000</td>
-<td align="right">1000</td>
-<td align="right">1000</td>
-</tr>
-<tr class="odd">
-<td align="left">R2</td>
-<td align="right">0.047</td>
-<td align="right">0.041</td>
-<td align="right">0.062</td>
-</tr>
-<tr class="even">
-<td align="left">R2 Adj.</td>
-<td align="right">0.041</td>
-<td align="right">0.035</td>
-<td align="right">0.057</td>
-</tr>
-<tr class="odd">
-<td align="left">AIC</td>
-<td align="right">2366.8</td>
-<td align="right">2616.6</td>
-<td align="right">2007.7</td>
-</tr>
-<tr class="even">
-<td align="left">BIC</td>
-<td align="right">2406.1</td>
-<td align="right">2655.8</td>
-<td align="right">2047.0</td>
-</tr>
-<tr class="odd">
-<td align="left">Log.Lik.</td>
-<td align="right">-1175.400</td>
-<td align="right">-1300.291</td>
-<td align="right">-995.864</td>
-</tr>
-<tr class="even">
-<td align="left">F</td>
-<td align="right">8.117</td>
-<td align="right">7.018</td>
-<td align="right">11.007</td>
-</tr>
-<tr class="odd">
-<td align="left">RMSE</td>
-<td align="right">0.78</td>
-<td align="right">0.89</td>
-<td align="right">0.66</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Note:</strong> ^^ * p &lt; 0.1, ** p &lt; 0.05, *** p &lt;
-0.01</p>
-</div>
-</div>
 <div id="supplementary-information" class="section level1">
 <h1>Supplementary Information</h1>
-<div id="table-1---balance-across-conditions" class="section level2">
-<h2>Table 1 - Balance across conditions</h2>
+<div id="table-b1.1---mean-demographic-values-by-treatment-group" class="section level2">
+<h2>Table B1.1 - Mean Demographic Values by Treatment Group</h2>
 <pre class="r"><code>data_balance &lt;- data_long[data_long$policy_position == &quot;1&quot;,]
 table(data_balance$treatment_group)</code></pre>
 <pre><code>## 
@@ -1330,165 +1163,135 @@ descriptive_stats_long</code></pre>
 ## 13 Independ…    0.35            0.25                 0.3                    0.27
 ## # ℹ 1 more variable: `Conservative Close Friend` &lt;dbl&gt;</code></pre>
 </div>
-<div id="table---social-conformism" class="section level2">
-<h2>Table - Social conformism</h2>
-<pre class="r"><code>####Get a latex output
-item_stats &lt;- as.data.frame(ca_sci$item.stats)
-item_stats2 &lt;- as.data.frame(ca_sci2$item.stats)
+<div id="table-b2.1---test-for-cronbachs-alpha" class="section level2">
+<h2>Table B2.1 - Test for Cronbach’s alpha</h2>
+<pre class="r"><code>items_sci_full &lt;- data_long %&gt;% 
+  select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf4_rec, BGU_conf5_rec, BGU_conf6_rec)
 
+ca_sci &lt;- alpha(items_sci_full, check.keys=TRUE)</code></pre>
+<pre><code>## Warning in alpha(items_sci_full, check.keys = TRUE): Some items were negatively correlated with the first principal component and were automatically reversed.
+##  This is indicated by a negative sign for the variable name.</code></pre>
+<pre class="r"><code>print(ca_sci)</code></pre>
+<pre><code>## 
+## Reliability analysis   
+## Call: alpha(x = items_sci_full, check.keys = TRUE)
+## 
+##   raw_alpha std.alpha G6(smc) average_r S/N    ase mean   sd median_r
+##       0.54      0.53    0.56      0.16 1.1 0.0073  1.8 0.41     0.11
+## 
+##     95% confidence boundaries 
+##          lower alpha upper
+## Feldt     0.52  0.54  0.55
+## Duhachek  0.52  0.54  0.55
+## 
+##  Reliability if an item is dropped:
+##                raw_alpha std.alpha G6(smc) average_r  S/N alpha se var.r med.r
+## BGU_conf1_rec       0.34      0.34    0.37     0.093 0.51   0.0108 0.028 0.030
+## BGU_conf2_rec       0.52      0.50    0.53     0.167 1.00   0.0077 0.058 0.051
+## BGU_conf3_rec       0.42      0.42    0.44     0.124 0.71   0.0095 0.031 0.092
+## BGU_conf4_rec-      0.61      0.59    0.60     0.227 1.46   0.0063 0.043 0.160
+## BGU_conf5_rec       0.58      0.57    0.58     0.212 1.35   0.0067 0.044 0.131
+## BGU_conf6_rec       0.40      0.39    0.42     0.115 0.65   0.0099 0.030 0.081
+## 
+##  Item statistics 
+##                   n raw.r std.r r.cor r.drop mean   sd
+## BGU_conf1_rec  9000  0.76  0.74 0.738  0.559  1.7 0.77
+## BGU_conf2_rec  9000  0.46  0.51 0.317  0.224  1.4 0.64
+## BGU_conf3_rec  9000  0.67  0.64 0.583  0.422  2.1 0.78
+## BGU_conf4_rec- 9000  0.35  0.33 0.047  0.032  1.9 0.78
+## BGU_conf5_rec  9000  0.33  0.37 0.123  0.059  1.5 0.67
+## BGU_conf6_rec  9000  0.70  0.67 0.632  0.462  2.2 0.80
+## 
+## Non missing response frequency for each item
+##                  1    2    3 miss
+## BGU_conf1_rec 0.47 0.33 0.20    0
+## BGU_conf2_rec 0.63 0.29 0.08    0
+## BGU_conf3_rec 0.25 0.37 0.38    0
+## BGU_conf4_rec 0.26 0.38 0.36    0
+## BGU_conf5_rec 0.62 0.28 0.10    0
+## BGU_conf6_rec 0.24 0.33 0.43    0</code></pre>
+<pre class="r"><code>item_stats &lt;- as.data.frame(ca_sci$item.stats)
 latex_table_items &lt;- xtable(item_stats)
-latex_table_items2 &lt;- xtable(item_stats2)
 print(latex_table_items, type = &#39;latex&#39;) </code></pre>
-<pre><code>## % latex table generated in R 4.3.1 by xtable 1.8-4 package
-## % Mon Dec 11 09:51:47 2023
-## \begin{table}[ht]
-## \centering
-## \begin{tabular}{rrrrrrrr}
-##   \hline
-##  &amp; n &amp; raw.r &amp; std.r &amp; r.cor &amp; r.drop &amp; mean &amp; sd \\ 
-##   \hline
-## BGU\_conf1\_rec &amp; 9000.00 &amp; 0.76 &amp; 0.74 &amp; 0.69 &amp; 0.55 &amp; 1.73 &amp; 0.77 \\ 
-##   BGU\_conf2\_rec &amp; 9000.00 &amp; 0.50 &amp; 0.55 &amp; 0.33 &amp; 0.25 &amp; 1.45 &amp; 0.64 \\ 
-##   BGU\_conf3\_rec &amp; 9000.00 &amp; 0.71 &amp; 0.68 &amp; 0.59 &amp; 0.46 &amp; 2.13 &amp; 0.78 \\ 
-##   BGU\_conf5\_rec &amp; 9000.00 &amp; 0.39 &amp; 0.43 &amp; 0.16 &amp; 0.10 &amp; 1.48 &amp; 0.67 \\ 
-##   BGU\_conf6\_rec &amp; 9000.00 &amp; 0.73 &amp; 0.70 &amp; 0.63 &amp; 0.49 &amp; 2.19 &amp; 0.80 \\ 
-##    \hline
-## \end{tabular}
-## \end{table}</code></pre>
-<pre class="r"><code>print(latex_table_items2, type = &#39;latex&#39;) </code></pre>
-<pre><code>## % latex table generated in R 4.3.1 by xtable 1.8-4 package
-## % Mon Dec 11 09:51:47 2023
-## \begin{table}[ht]
-## \centering
-## \begin{tabular}{rrrrrrrr}
-##   \hline
-##  &amp; n &amp; raw.r &amp; std.r &amp; r.cor &amp; r.drop &amp; mean &amp; sd \\ 
-##   \hline
-## BGU\_conf1\_rec &amp; 9000.00 &amp; 0.76 &amp; 0.74 &amp; 0.74 &amp; 0.56 &amp; 1.73 &amp; 0.77 \\ 
-##   BGU\_conf2\_rec &amp; 9000.00 &amp; 0.46 &amp; 0.51 &amp; 0.32 &amp; 0.22 &amp; 1.45 &amp; 0.64 \\ 
-##   BGU\_conf3\_rec &amp; 9000.00 &amp; 0.67 &amp; 0.64 &amp; 0.58 &amp; 0.42 &amp; 2.13 &amp; 0.78 \\ 
-##   BGU\_conf4\_rec- &amp; 9000.00 &amp; 0.35 &amp; 0.33 &amp; 0.05 &amp; 0.03 &amp; 1.90 &amp; 0.78 \\ 
-##   BGU\_conf5\_rec &amp; 9000.00 &amp; 0.33 &amp; 0.37 &amp; 0.12 &amp; 0.06 &amp; 1.48 &amp; 0.67 \\ 
-##   BGU\_conf6\_rec &amp; 9000.00 &amp; 0.70 &amp; 0.67 &amp; 0.63 &amp; 0.46 &amp; 2.19 &amp; 0.80 \\ 
-##    \hline
-## \end{tabular}
-## \end{table}</code></pre>
 </div>
-<div id="table---full-models" class="section level2">
-<h2>Table - Full models</h2>
-<pre class="r"><code>policy_support &lt;- list(
-  &quot;Policy Support&quot; = lm(policy_opinion ~ male + pid3 + treatment_group, data = data_long))
-
-msummary(policy_support,
+<div id="table-c1.1-average-treatment-effect-of-policy-cue" class="section level2">
+<h2>Table C1.1 Average Treatment Effect of Policy Cue</h2>
+<pre class="r"><code>msummary(model1,
+         title = &quot;Average Treatment Effect of Policy Cue&quot;,
          stars = c(&#39;*&#39; = .1, &#39;**&#39; = .05, &#39;***&#39; = .01),
+         estimate = &quot;{estimate}{stars} ({std.error})&quot;,
+         statistic = NULL,
          output = &#39;markdown&#39;)</code></pre>
+<pre><code> Table: Average Treatment Effect of Policy Cue</code></pre>
 <table>
 <thead>
 <tr class="header">
 <th align="left"></th>
-<th align="right">Policy Support</th>
+<th align="right">(1)</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td align="left">(Intercept)</td>
-<td align="right">0.436***</td>
+<td align="right">0.345*** (0.033)</td>
 </tr>
 <tr class="even">
-<td align="left"></td>
-<td align="right">(0.029)</td>
+<td align="left">libtrump</td>
+<td align="right">-0.093** (0.046)</td>
 </tr>
 <tr class="odd">
-<td align="left">male</td>
-<td align="right">-0.139***</td>
+<td align="left">contrump</td>
+<td align="right">-0.049 (0.045)</td>
 </tr>
 <tr class="even">
-<td align="left"></td>
-<td align="right">(0.020)</td>
+<td align="left">libfriend</td>
+<td align="right">-0.075 (0.046)</td>
 </tr>
 <tr class="odd">
-<td align="left">pid3</td>
-<td align="right">-0.068***</td>
+<td align="left">confriend</td>
+<td align="right">-0.047 (0.046)</td>
 </tr>
 <tr class="even">
-<td align="left"></td>
-<td align="right">(0.008)</td>
+<td align="left">:————</td>
+<td align="right">—————–:</td>
 </tr>
 <tr class="odd">
-<td align="left">treatment_groupTL</td>
-<td align="right">0.031</td>
-</tr>
-<tr class="even">
-<td align="left"></td>
-<td align="right">(0.030)</td>
-</tr>
-<tr class="odd">
-<td align="left">treatment_groupTC</td>
-<td align="right">0.025</td>
-</tr>
-<tr class="even">
-<td align="left"></td>
-<td align="right">(0.030)</td>
-</tr>
-<tr class="odd">
-<td align="left">treatment_groupCFL</td>
-<td align="right">0.027</td>
-</tr>
-<tr class="even">
-<td align="left"></td>
-<td align="right">(0.030)</td>
-</tr>
-<tr class="odd">
-<td align="left">treatment_groupCFC</td>
-<td align="right">0.012</td>
-</tr>
-<tr class="even">
-<td align="left"></td>
-<td align="right">(0.031)</td>
-</tr>
-<tr class="odd">
-<td align="left">:——————-</td>
-<td align="right">—————:</td>
-</tr>
-<tr class="even">
 <td align="left">Num.Obs.</td>
-<td align="right">9000</td>
+<td align="right">1000</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">R2</td>
-<td align="right">0.014</td>
+<td align="right">0.005</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">R2 Adj.</td>
-<td align="right">0.013</td>
+<td align="right">0.001</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">AIC</td>
-<td align="right">23751.8</td>
+<td align="right">1268.8</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">BIC</td>
-<td align="right">23808.6</td>
-</tr>
-<tr class="odd">
-<td align="left">Log.Lik.</td>
-<td align="right">-11867.886</td>
+<td align="right">1298.3</td>
 </tr>
 <tr class="even">
-<td align="left">F</td>
-<td align="right">20.763</td>
+<td align="left">Log.Lik.</td>
+<td align="right">-628.418</td>
 </tr>
 <tr class="odd">
+<td align="left">F</td>
+<td align="right">1.179</td>
+</tr>
+<tr class="even">
 <td align="left">RMSE</td>
-<td align="right">0.90</td>
+<td align="right">0.45</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Note:</strong> ^^ * p &lt; 0.1, ** p &lt; 0.05, *** p &lt;
-0.01</p>
 </div>
-<div id="table---treatment-effect-per-policy-issues" class="section level2">
-<h2>Table - Treatment effect per policy issues</h2>
+<div id="table-c1.2---treatment-effect-per-policy-issues" class="section level2">
+<h2>Table C1.2 - Treatment effect per policy issues</h2>
 <pre class="r"><code>models_pol_issues &lt;- list(
   &quot;Wages&quot; = lm(policy_opinion ~ male + pid3 + treatment_group, data = data_long[data_long$policy_issue == 1, ]),
   &quot;Taxes&quot; = lm(policy_opinion ~ male + pid3 + treatment_group, data = data_long[data_long$policy_issue == 2, ]),
@@ -1812,8 +1615,342 @@ msummary(models_pol_issues,
 <p><strong>Note:</strong> ^^ * p &lt; 0.1, ** p &lt; 0.05, *** p &lt;
 0.01</p>
 </div>
-<div id="figure---distribution-political-knowledge" class="section level2">
-<h2>Figure - Distribution political knowledge</h2>
+<div id="interactions" class="section level2">
+<h2>Interactions</h2>
+<div id="table-c3.1-with-party-id" class="section level3">
+<h3>Table C3.1 With Party ID</h3>
+<pre class="r"><code>msummary(model2,
+         title = &quot;Interaction with Party Identification&quot;,
+         stars = c(&#39;*&#39; = .1, &#39;**&#39; = .05, &#39;***&#39; = .01),
+         estimate = &quot;{estimate}{stars} ({std.error})&quot;,
+         statistic = NULL,
+         output = &#39;markdown&#39;)</code></pre>
+<pre><code> Table: Interaction with Party Identification</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left"></th>
+<th align="right">(1)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">(Intercept)</td>
+<td align="right">0.479*** (0.037)</td>
+</tr>
+<tr class="even">
+<td align="left">male</td>
+<td align="right">-0.099*** (0.019)</td>
+</tr>
+<tr class="odd">
+<td align="left">party_idIndependent/Other</td>
+<td align="right">-0.143*** (0.050)</td>
+</tr>
+<tr class="even">
+<td align="left">party_idRepublican</td>
+<td align="right">-0.570*** (0.056)</td>
+</tr>
+<tr class="odd">
+<td align="left">treatment_groupTL</td>
+<td align="right">-0.001 (0.048)</td>
+</tr>
+<tr class="even">
+<td align="left">treatment_groupTC</td>
+<td align="right">0.040 (0.050)</td>
+</tr>
+<tr class="odd">
+<td align="left">treatment_groupCFL</td>
+<td align="right">0.044 (0.049)</td>
+</tr>
+<tr class="even">
+<td align="left">treatment_groupCFC</td>
+<td align="right">-0.020 (0.050)</td>
+</tr>
+<tr class="odd">
+<td align="left">party_idIndependent/Other × treatment_groupTL</td>
+<td align="right">-0.090 (0.069)</td>
+</tr>
+<tr class="even">
+<td align="left">party_idRepublican × treatment_groupTL</td>
+<td align="right">0.189** (0.078)</td>
+</tr>
+<tr class="odd">
+<td align="left">party_idIndependent/Other × treatment_groupTC</td>
+<td align="right">-0.100 (0.068)</td>
+</tr>
+<tr class="even">
+<td align="left">party_idRepublican × treatment_groupTC</td>
+<td align="right">0.034 (0.078)</td>
+</tr>
+<tr class="odd">
+<td align="left">party_idIndependent/Other × treatment_groupCFL</td>
+<td align="right">-0.197*** (0.068)</td>
+</tr>
+<tr class="even">
+<td align="left">party_idRepublican × treatment_groupCFL</td>
+<td align="right">0.088 (0.082)</td>
+</tr>
+<tr class="odd">
+<td align="left">party_idIndependent/Other × treatment_groupCFC</td>
+<td align="right">-0.062 (0.068)</td>
+</tr>
+<tr class="even">
+<td align="left">party_idRepublican × treatment_groupCFC</td>
+<td align="right">0.103 (0.081)</td>
+</tr>
+<tr class="odd">
+<td align="left">:———————————————–</td>
+<td align="right">——————:</td>
+</tr>
+<tr class="even">
+<td align="left">Num.Obs.</td>
+<td align="right">9000</td>
+</tr>
+<tr class="odd">
+<td align="left">R2</td>
+<td align="right">0.049</td>
+</tr>
+<tr class="even">
+<td align="left">R2 Adj.</td>
+<td align="right">0.048</td>
+</tr>
+<tr class="odd">
+<td align="left">AIC</td>
+<td align="right">23438.5</td>
+</tr>
+<tr class="even">
+<td align="left">BIC</td>
+<td align="right">23559.3</td>
+</tr>
+<tr class="odd">
+<td align="left">Log.Lik.</td>
+<td align="right">-11702.247</td>
+</tr>
+<tr class="even">
+<td align="left">F</td>
+<td align="right">31.064</td>
+</tr>
+<tr class="odd">
+<td align="left">RMSE</td>
+<td align="right">0.89</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="table-c3.2-with-political-knowledge" class="section level3">
+<h3>Table C3.2 With Political Knowledge</h3>
+<pre class="r"><code>msummary(model3,
+         title = &quot;Interaction with Political Knowledge&quot;,
+         stars = c(&#39;*&#39; = .1, &#39;**&#39; = .05, &#39;***&#39; = .01),
+         estimate = &quot;{estimate}{stars} ({std.error})&quot;,
+         statistic = NULL,
+         output = &#39;markdown&#39;)</code></pre>
+<pre><code> Table: Interaction with Political Knowledge</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left"></th>
+<th align="right">(1)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">(Intercept)</td>
+<td align="right">0.510*** (0.045)</td>
+</tr>
+<tr class="even">
+<td align="left">male</td>
+<td align="right">-0.115*** (0.021)</td>
+</tr>
+<tr class="odd">
+<td align="left">pid3</td>
+<td align="right">-0.071*** (0.008)</td>
+</tr>
+<tr class="even">
+<td align="left">knowledge</td>
+<td align="right">-0.027** (0.013)</td>
+</tr>
+<tr class="odd">
+<td align="left">treatment_groupTL</td>
+<td align="right">0.058 (0.060)</td>
+</tr>
+<tr class="even">
+<td align="left">treatment_groupTC</td>
+<td align="right">-0.043 (0.059)</td>
+</tr>
+<tr class="odd">
+<td align="left">treatment_groupCFL</td>
+<td align="right">0.066 (0.059)</td>
+</tr>
+<tr class="even">
+<td align="left">treatment_groupCFC</td>
+<td align="right">-0.053 (0.058)</td>
+</tr>
+<tr class="odd">
+<td align="left">knowledge × treatment_groupTL</td>
+<td align="right">-0.008 (0.018)</td>
+</tr>
+<tr class="even">
+<td align="left">knowledge × treatment_groupTC</td>
+<td align="right">0.024 (0.017)</td>
+</tr>
+<tr class="odd">
+<td align="left">knowledge × treatment_groupCFL</td>
+<td align="right">-0.013 (0.017)</td>
+</tr>
+<tr class="even">
+<td align="left">knowledge × treatment_groupCFC</td>
+<td align="right">0.023 (0.017)</td>
+</tr>
+<tr class="odd">
+<td align="left">:——————————-</td>
+<td align="right">——————:</td>
+</tr>
+<tr class="even">
+<td align="left">Num.Obs.</td>
+<td align="right">9000</td>
+</tr>
+<tr class="odd">
+<td align="left">R2</td>
+<td align="right">0.016</td>
+</tr>
+<tr class="even">
+<td align="left">R2 Adj.</td>
+<td align="right">0.015</td>
+</tr>
+<tr class="odd">
+<td align="left">AIC</td>
+<td align="right">23740.9</td>
+</tr>
+<tr class="even">
+<td align="left">BIC</td>
+<td align="right">23833.3</td>
+</tr>
+<tr class="odd">
+<td align="left">Log.Lik.</td>
+<td align="right">-11857.470</td>
+</tr>
+<tr class="even">
+<td align="left">F</td>
+<td align="right">13.239</td>
+</tr>
+<tr class="odd">
+<td align="left">RMSE</td>
+<td align="right">0.90</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="table-c3.3-with-social-conformism" class="section level3">
+<h3>Table C3.3 With Social Conformism</h3>
+<pre class="r"><code>msummary(model_4,
+         title = &quot;Interaction with Social Conformism Index&quot;,
+         stars = c(&#39;*&#39; = .1, &#39;**&#39; = .05, &#39;***&#39; = .01),
+         estimate = &quot;{estimate}{stars} ({std.error})&quot;,
+         statistic = NULL,
+         output = &#39;markdown&#39;)</code></pre>
+<pre><code> Table: Interaction with Social Conformism Index</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left"></th>
+<th align="right">(1)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">(Intercept)</td>
+<td align="right">0.743*** (0.083)</td>
+</tr>
+<tr class="even">
+<td align="left">male</td>
+<td align="right">-0.136*** (0.020)</td>
+</tr>
+<tr class="odd">
+<td align="left">pid3</td>
+<td align="right">-0.068*** (0.008)</td>
+</tr>
+<tr class="even">
+<td align="left">treatment_groupTL</td>
+<td align="right">-0.168 (0.113)</td>
+</tr>
+<tr class="odd">
+<td align="left">treatment_groupTC</td>
+<td align="right">-0.045 (0.109)</td>
+</tr>
+<tr class="even">
+<td align="left">treatment_groupCFL</td>
+<td align="right">-0.116 (0.112)</td>
+</tr>
+<tr class="odd">
+<td align="left">treatment_groupCFC</td>
+<td align="right">-0.222** (0.112)</td>
+</tr>
+<tr class="even">
+<td align="left">SCI</td>
+<td align="right">-0.167*** (0.042)</td>
+</tr>
+<tr class="odd">
+<td align="left">treatment_groupTL × SCI</td>
+<td align="right">0.109* (0.058)</td>
+</tr>
+<tr class="even">
+<td align="left">treatment_groupTC × SCI</td>
+<td align="right">0.038 (0.057)</td>
+</tr>
+<tr class="odd">
+<td align="left">treatment_groupCFL × SCI</td>
+<td align="right">0.079 (0.058)</td>
+</tr>
+<tr class="even">
+<td align="left">treatment_groupCFC × SCI</td>
+<td align="right">0.127** (0.058)</td>
+</tr>
+<tr class="odd">
+<td align="left">:————————-</td>
+<td align="right">——————:</td>
+</tr>
+<tr class="even">
+<td align="left">Num.Obs.</td>
+<td align="right">9000</td>
+</tr>
+<tr class="odd">
+<td align="left">R2</td>
+<td align="right">0.017</td>
+</tr>
+<tr class="even">
+<td align="left">R2 Adj.</td>
+<td align="right">0.016</td>
+</tr>
+<tr class="odd">
+<td align="left">AIC</td>
+<td align="right">23726.8</td>
+</tr>
+<tr class="even">
+<td align="left">BIC</td>
+<td align="right">23819.2</td>
+</tr>
+<tr class="odd">
+<td align="left">Log.Lik.</td>
+<td align="right">-11850.401</td>
+</tr>
+<tr class="even">
+<td align="left">F</td>
+<td align="right">14.544</td>
+</tr>
+<tr class="odd">
+<td align="left">RMSE</td>
+<td align="right">0.90</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="figures-1" class="section level1">
+<h1>Figures</h1>
+<div id="figure-1---distribution-political-knowledge" class="section level2">
+<h2>Figure 1 - Distribution political knowledge</h2>
 <pre class="r"><code>pol_knowledge_plot &lt;- data_long[data_long$policy_issue == 1, ] %&gt;%
   count(knowledge) %&gt;%
   ggplot(aes(x = knowledge, y = n)) +
