@@ -25,8 +25,8 @@ pacman::p_load(modelsummary, pwr, survey, broom, dplyr, tidyr, knitr, kableExtra
 # Open data
 
 ```{r}
-#load("/Users/franciscacastro/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/environment.Rdata")
-load("C:/Users/Francisca/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/environment.Rdata")
+load("/Users/franciscacastro/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/environment.Rdata")
+#load("C:/Users/Francisca/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/environment.Rdata")
 ```
 
 <br>
@@ -117,7 +117,7 @@ msummary(models_initial,
 
 ## With wide database
 
-Assesing the effect of the treatment on policy positions *for each
+Assessing the effect of the treatment on policy positions *for each
 topic*.
 
 ```{r}
@@ -136,7 +136,6 @@ models_initial_w <- list(
 msummary(models_initial_w,
          stars = c('*' = .1, '**' = .05, '***' = .01),
          output = 'markdown')
-
 ```
 
 Filtered results for the paper
@@ -149,7 +148,7 @@ models_filtered <- list(
 
 msummary(models_filtered,
          stars = c('*' = .1, '**' = .05, '***' = .01),
-         output = "latex")
+         output = "markdown")
 ```
 
 # Interactions
@@ -181,64 +180,208 @@ pol_knowledge_interaction <- list(
   "Planned Parenthood" = lm(p_parent ~ BGU_group * knowledge_index, data = data_wide)
 )
 
-msummary(pol_knowledge_interaction,
+pol_knowledge_interaction_sig <- list(
+  "Guns" = lm(guns ~ BGU_group * knowledge_index, data = data_wide),
+  "Background Checks" = lm(b_checks ~ BGU_group * knowledge_index, data = data_wide),
+  "Climate Change" = lm(climate ~ BGU_group * knowledge_index, data = data_wide)
+)
+
+msummary(pol_knowledge_interaction_sig,
          stars = c('*' = .1, '**' = .05, '***' = .01),
          output = 'markdown')
 ```
+### Relevant interactions: Guns
 
-### Relevant interactions: Background checks-Trump cue
+```{r}
+model_pk_guns <- lm(guns ~ BGU_group * knowledge_index, data = data_wide)
+effects_TL_pk_guns <- ggpredict(model_pk_guns, terms = c("knowledge_index", "BGU_group[TL]"))
+effects_TC_pk_guns <- ggpredict(model_pk_guns, terms = c("knowledge_index", "BGU_group[TC]"))
+effects_CFL_pk_guns <- ggpredict(model_pk_guns, terms = c("knowledge_index", "BGU_group[CFL]"))
+effects_CFC_pk_guns <- ggpredict(model_pk_guns, terms = c("knowledge_index", "BGU_group[CFC]"))
 
-```{r message=FALSE, warning=FALSE}
-model_bchecks <- lm(b_checks ~ BGU_group * knowledge_index, data = data_wide)
-effects_TL_bchecks <- ggpredict(model_bchecks, terms = c("knowledge_index", "BGU_group[TL]"))
-effects_TC_bchecks <- ggpredict(model_bchecks, terms = c("knowledge_index", "BGU_group[TC]"))
+effects_pk_guns <- rbind(transform(effects_TL_pk_guns, treatment = "TL"),
+                      transform(effects_TC_pk_guns, treatment = "TC"),
+                      transform(effects_CFL_pk_guns, treatment = "CFL"),
+                      transform(effects_CFC_pk_guns, treatment = "CFC"))
 
-effects_bchecks <- rbind(transform(effects_TL_bchecks, treatment = "TL"),
-                       transform(effects_TC_bchecks, treatment = "TC"))
+effects_pk_guns$treatment <- factor(effects_pk_guns$treatment, 
+                                    levels = c("TL", "TC", "CFL", "CFC"), 
+                                    labels = c("Trump Liberal", "Trump Conservative",
+                                               "CF Liberal", "CF Conservative"))
 
-effects_bchecks$treatment <- factor(effects_bchecks$treatment, 
-                                  levels = c("TC", "TL"), 
-                                  labels = c("Conservative", "Liberal"))
+# Subset the data for Trump 
+trump_effects_pk_guns <- subset(effects_pk_guns, treatment %in% c("Trump Liberal", "Trump Conservative"))
 
-bchecks_plot <- ggplot(effects_bchecks, aes(x = x, y = predicted, color = treatment)) +
-  geom_line(aes(group = treatment), size = 1, show.legend = FALSE) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), 
-              alpha = 0.2, show.legend = FALSE) +
-  labs(y = "Background Checks Position", x = "Political Knowledge") +
+# Subset the data for Close Friend 
+cf_effects_pk_guns <- subset(effects_pk_guns, treatment %in% c("CF Liberal", "CF Conservative"))
+
+# Plot for Trump treatments
+guns_plot_pk_trump <- ggplot(trump_effects_pk_guns, aes(x = x, y = predicted, color = treatment)) +
+  geom_line(aes(group = treatment), size = 1) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), alpha = 0.2) +
+  labs(y = "Guns Policy Position", title = "Trump Treatments",
+       x = "Political Knowledge",  color = "Treatment", fill = "Treatment") +
   theme_minimal() +
-  theme(#axis.title.x = element_blank(),     
-        axis.title.y = element_text(size = 14))      
+  theme(legend.position = "none")+
+  scale_color_manual(values = c("Trump Liberal" = "black", "Trump Conservative" = "#A0A0A0")) +
+  scale_fill_manual(values = c("Trump Liberal" = "black", "Trump Conservative" = "#A0A0A0")) +
+  ylim(-1.5, 1.0)
 
-bchecks_plot
+guns_plot_pk_trump
+
+# Plot for Close Friend treatments
+guns_plot_pk_cf <- ggplot(cf_effects_pk_guns, aes(x = x, y = predicted, color = treatment)) +
+  geom_line(aes(group = treatment), size = 1) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), alpha = 0.2) +
+  labs(y = "Guns Policy Position", title = "Close Friend Treatments",
+       x = "Political Knowledge", color = " ", fill = " ") +
+  theme_minimal() +
+  theme(legend.position = "none", axis.title.y = element_blank())  +
+  scale_color_manual(values = c("CF Liberal" = "black", "CF Conservative" = "#A0A0A0")) +
+  scale_fill_manual(values = c("CF Liberal" = "black", "CF Conservative" = "#A0A0A0")) +
+  ylim(-1.5, 1.0)
+
+guns_plot_pk_cf
+
+guns_plot_pk_final <- grid.arrange(guns_plot_pk_trump, guns_plot_pk_cf, ncol = 2, widths = c(1.1, 1.0)) 
+
+ggsave("guns_plot_polknowledge.png", guns_plot_pk_final, width = 6, height = 5, dpi = 600)
 ```
 
 
-### Relevant interactions: Climate change-Close friend cue
-```{r message=FALSE, warning=FALSE}
-model_climate <- lm(climate ~ BGU_group * knowledge_index, data = data_wide)
-effects_CFL_climate <- ggpredict(model_climate, terms = c("knowledge_index", "BGU_group[CFL]"))
-effects_CFC_climate <- ggpredict(model_climate, terms = c("knowledge_index", "BGU_group[CFC]"))
+### Relevant interactions: Background checks
 
-effects_climate <- rbind(transform(effects_CFL_climate, treatment = "CFL"),
-                         transform(effects_CFC_climate, treatment = "CFC"))
+```{r}
+model_pk_bchecks <- lm(b_checks ~ BGU_group * knowledge_index, data = data_wide)
+effects_TL_pk_bchecks <- ggpredict(model_pk_bchecks, terms = c("knowledge_index", "BGU_group[TL]"))
+effects_TC_pk_bchecks <- ggpredict(model_pk_bchecks, terms = c("knowledge_index", "BGU_group[TC]"))
+effects_CFL_pk_bchecks <- ggpredict(model_pk_bchecks, terms = c("knowledge_index", "BGU_group[CFL]"))
+effects_CFC_pk_bchecks <- ggpredict(model_pk_bchecks, terms = c("knowledge_index", "BGU_group[CFC]"))
 
-effects_climate$treatment <- factor(effects_climate$treatment, 
-                                  levels = c("CFC", "CFL"), 
-                                  labels = c("CF Conservative", "CF Liberal"))
+effects_pk_bchecks <- rbind(transform(effects_TL_pk_bchecks, treatment = "TL"),
+                      transform(effects_TC_pk_bchecks, treatment = "TC"),
+                      transform(effects_CFL_pk_bchecks, treatment = "CFL"),
+                      transform(effects_CFC_pk_bchecks, treatment = "CFC"))
 
-climate_plot <- ggplot(effects_climate, aes(x = x, y = predicted, color = treatment)) +
-  geom_line(aes(group = treatment), size = 1, show.legend = FALSE) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), 
-              alpha = 0.2, show.legend = TRUE) +
-  labs(y = "Climate Change Position", x = "Political Knowledge") +
+effects_pk_bchecks$treatment <- factor(effects_pk_bchecks$treatment, 
+                                    levels = c("TL", "TC", "CFL", "CFC"), 
+                                    labels = c("Trump Liberal", "Trump Conservative",
+                                               "CF Liberal", "CF Conservative"))
+
+# Subset the data for Trump 
+trump_effects_pk_bchecks <- subset(effects_pk_bchecks, 
+                                   treatment %in% c("Trump Liberal", "Trump Conservative"))
+
+# Subset the data for Close Friend 
+cf_effects_pk_bchecks <- subset(effects_pk_bchecks, treatment %in% c("CF Liberal", "CF Conservative"))
+
+# Plot for Trump treatments
+bchecks_plot_pk_trump <- ggplot(trump_effects_pk_bchecks, aes(x = x, y = predicted, color = treatment)) +
+  geom_line(aes(group = treatment), size = 1) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), alpha = 0.2) +
+  labs(y = "Background Checks Policy Position", title = "Trump Treatments",
+       x = "Political Knowledge",  color = "Treatment", fill = "Treatment") +
   theme_minimal() +
-  theme(#axis.title.x = element_blank(),     
-        axis.title.y = element_text(size = 14))     
+  theme(legend.position = "none")+
+  scale_color_manual(values = c("Trump Liberal" = "black", "Trump Conservative" = "#A0A0A0")) +
+  scale_fill_manual(values = c("Trump Liberal" = "black", "Trump Conservative" = "#A0A0A0")) +
+  ylim(-1.5, 1.0)
 
-climate_plot
+bchecks_plot_pk_trump
+
+# Plot for Close Friend treatments
+bchecks_plot_pk_cf <- ggplot(cf_effects_pk_bchecks, aes(x = x, y = predicted, color = treatment)) +
+  geom_line(aes(group = treatment), size = 1) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), alpha = 0.2) +
+  labs(y = "Background Checks Policy Position", title = "Close Friend Treatments",
+       x = "Political Knowledge", color = " ", fill = " ") +
+  theme_minimal() +
+  theme(legend.position = "none", axis.title.y = element_blank())  +
+  scale_color_manual(values = c("CF Liberal" = "black", "CF Conservative" = "#A0A0A0")) +
+  scale_fill_manual(values = c("CF Liberal" = "black", "CF Conservative" = "#A0A0A0")) +
+  ylim(-1.5, 1.0)
+
+bchecks_plot_pk_cf
+
+bchecks_plot_pk_final <- grid.arrange(bchecks_plot_pk_trump, bchecks_plot_pk_cf, 
+                                      ncol = 2, widths = c(1.1, 1.0)) 
+
+ggsave("bchecks_plot_polknowledge.png", bchecks_plot_pk_final, width = 6, height = 5, dpi = 600)
 ```
 
-## Ideology
+### Relevant interactions: Climate change
+
+```{r}
+model_pk_clima <- lm(climate ~ BGU_group * knowledge_index, data = data_wide)
+effects_TL_pk_clima <- ggpredict(model_pk_clima, terms = c("knowledge_index", "BGU_group[TL]"))
+effects_TC_pk_clima <- ggpredict(model_pk_clima, terms = c("knowledge_index", "BGU_group[TC]"))
+effects_CFL_pk_clima <- ggpredict(model_pk_clima, terms = c("knowledge_index", "BGU_group[CFL]"))
+effects_CFC_pk_clima <- ggpredict(model_pk_clima, terms = c("knowledge_index", "BGU_group[CFC]"))
+
+effects_pk_clima <- rbind(transform(effects_TL_pk_clima, treatment = "TL"),
+                      transform(effects_TC_pk_clima, treatment = "TC"),
+                      transform(effects_CFL_pk_clima, treatment = "CFL"),
+                      transform(effects_CFC_pk_clima, treatment = "CFC"))
+
+effects_pk_clima$treatment <- factor(effects_pk_clima$treatment, 
+                                    levels = c("TL", "TC", "CFL", "CFC"), 
+                                    labels = c("Trump Liberal", "Trump Conservative",
+                                               "CF Liberal", "CF Conservative"))
+
+# Subset the data for Trump 
+trump_effects_pk_clima <- subset(effects_pk_clima, 
+                                   treatment %in% c("Trump Liberal", "Trump Conservative"))
+
+# Subset the data for Close Friend 
+cf_effects_pk_clima <- subset(effects_pk_clima, treatment %in% c("CF Liberal", "CF Conservative"))
+
+# Plot for Trump treatments
+clima_plot_pk_trump <- ggplot(trump_effects_pk_clima, aes(x = x, y = predicted, color = treatment)) +
+  geom_line(aes(group = treatment), size = 1) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), alpha = 0.2) +
+  labs(y = "Climate Change Policy Position", title = "Trump Treatments",
+       x = "Political Knowledge",  color = "Treatment", fill = "Treatment") +
+  theme_minimal() +
+  theme(legend.position = "none")+
+  scale_color_manual(values = c("Trump Liberal" = "black", "Trump Conservative" = "#A0A0A0")) +
+  scale_fill_manual(values = c("Trump Liberal" = "black", "Trump Conservative" = "#A0A0A0")) +
+  ylim(-1.5, 1.0)
+
+clima_plot_pk_trump
+
+# Plot for Close Friend treatments
+clima_plot_pk_cf <- ggplot(cf_effects_pk_clima, aes(x = x, y = predicted, color = treatment)) +
+  geom_line(aes(group = treatment), size = 1) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), alpha = 0.2) +
+  labs(y = "Climate Change Policy Position", title = "Close Friend Treatments",
+       x = "Political Knowledge", color = " ", fill = " ") +
+  theme_minimal() +
+  theme(legend.position = "none", axis.title.y = element_blank())  +
+  scale_color_manual(values = c("CF Liberal" = "black", "CF Conservative" = "#A0A0A0")) +
+  scale_fill_manual(values = c("CF Liberal" = "black", "CF Conservative" = "#A0A0A0")) +
+  ylim(-1.5, 1.0)
+
+clima_plot_pk_cf
+
+clima_plot_pk_final <- grid.arrange(clima_plot_pk_trump, clima_plot_pk_cf, 
+                                      ncol = 2, widths = c(1.1, 1.0)) 
+
+ggsave("clima_plot_polknowledge.png", clima_plot_pk_final, width = 6, height = 5, dpi = 600)
+```
+
+Join the three plots
+
+```{r}
+polknowledge_interaction <- grid.arrange(guns_plot_pk_final,
+                                         bchecks_plot_pk_final,
+                                         clima_plot_pk_final,
+                                         ncol = 1)
+
+ggsave("polknowledge_inter.png", polknowledge_interaction, width = 6, height = 7, dpi = 600)
+```
+
+
+## Ideology interaction
 
 ```{r}
 ideology_interaction <- list(
@@ -257,7 +400,7 @@ msummary(ideology_interaction,
          output = 'markdown')
 ```
 
-## Party identification
+## Party identification interaction
 
 ```{r}
 party_id_interaction <- list(
@@ -421,28 +564,57 @@ wages_plot_sci
 model_guns <- lm(guns ~ BGU_group * SCI, data = data_wide)
 effects_TL_guns <- ggpredict(model_guns, terms = c("SCI", "BGU_group[TL]"))
 effects_TC_guns <- ggpredict(model_guns, terms = c("SCI", "BGU_group[TC]"))
+effects_CFL_guns <- ggpredict(model_guns, terms = c("SCI", "BGU_group[CFL]"))
+effects_CFC_guns <- ggpredict(model_guns, terms = c("SCI", "BGU_group[CFC]"))
 
 effects_guns <- rbind(transform(effects_TL_guns, treatment = "TL"),
-                       transform(effects_TC_guns, treatment = "TC"))
+                      transform(effects_TC_guns, treatment = "TC"),
+                      transform(effects_CFL_guns, treatment = "CFL"),
+                      transform(effects_CFC_guns, treatment = "CFC"))
 
 effects_guns$treatment <- factor(effects_guns$treatment, 
-                                  levels = c("TC", "TL"), 
-                                  labels = c("Conservative", "Liberal"))
+                                  levels = c("TL", "TC", "CFL", "CFC"), 
+                                  labels = c("Trump Liberal", "Trump Conservative",
+                                             "CF Liberal", "CF Conservative"))
 
-guns_plot_sci <- ggplot(effects_guns, aes(x = x, y = predicted, color = treatment)) +
-  geom_line(aes(group = treatment), size = 1, show.legend = FALSE) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), 
-              alpha = 0.2, show.legend = FALSE) +
-  labs(y = "Guns Policy Position") +
+# Subset the data for Trump 
+trump_effects_guns <- subset(effects_guns, treatment %in% c("Trump Liberal", "Trump Conservative"))
+
+# Subset the data for Close Friend 
+cf_effects_guns <- subset(effects_guns, treatment %in% c("CF Liberal", "CF Conservative"))
+
+# Plot for Trump treatments
+guns_plot_trump <- ggplot(trump_effects_guns, aes(x = x, y = predicted, color = treatment)) +
+  geom_line(aes(group = treatment), size = 1) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), alpha = 0.2) +
+  labs(y = "Guns Policy Position", title = "Trump Treatments",
+       x = "Social Conformism Index (SCI)",  color = "Treatment", fill = "Treatment") +
   theme_minimal() +
-  theme(axis.title.x = element_blank(),
-        axis.title.y = element_text(size = 14)) +
-  scale_color_manual(values = c("Conservative" = "black", "Liberal" = "#A0A0A0")) +
-  scale_fill_manual(values = c("Conservative" = "black", "Liberal" = "#A0A0A0"))
-           
+  theme(legend.position = "none")+
+  scale_color_manual(values = c("Trump Liberal" = "black", "Trump Conservative" = "#A0A0A0")) +
+  scale_fill_manual(values = c("Trump Liberal" = "black", "Trump Conservative" = "#A0A0A0")) +
+  ylim(-1.5, 1.0)
+
+guns_plot_trump
 
 
-guns_plot_sci
+# Plot for Close Friend treatments
+guns_plot_cf <- ggplot(cf_effects_guns, aes(x = x, y = predicted, color = treatment)) +
+  geom_line(aes(group = treatment), size = 1) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), alpha = 0.2) +
+  labs(y = "Guns Policy Position", title = "Close Friend Treatments",
+       x = "Social Conformism Index (SCI)", color = " ", fill = " ") +
+  theme_minimal() +
+  theme(legend.position = "none", axis.title.y = element_blank())  +
+  scale_color_manual(values = c("CF Liberal" = "black", "CF Conservative" = "#A0A0A0")) +
+  scale_fill_manual(values = c("CF Liberal" = "black", "CF Conservative" = "#A0A0A0")) +
+  ylim(-1.5, 1.0)
+
+guns_plot_cf
+
+guns_plot_final <- grid.arrange(guns_plot_trump, guns_plot_cf, ncol = 2, widths = c(1.1, 1.0)) 
+
+ggsave("guns_plot_final.png", guns_plot_final, width = 6, height = 5, dpi = 600)
 ```
 This plot is also interesting, but note that -1 indicates the opposition to allowing teaching to carry guns, and 1 represents the support for it. So, in this case, people with lower levels of social conformisms are more in opposition to the policy, and people with higher levels of social conformism, more in favor of allowing teachers to carry guns. 
 
@@ -452,32 +624,64 @@ This plot is also interesting, but note that -1 indicates the opposition to allo
 model_health <- lm(health ~ BGU_group * SCI, data = data_wide)
 effects_TL_health <- ggpredict(model_health, terms = c("SCI", "BGU_group[TL]"))
 effects_TC_health <- ggpredict(model_health, terms = c("SCI", "BGU_group[TC]"))
+effects_CFL_health <- ggpredict(model_health, terms = c("SCI", "BGU_group[CFL]"))
+effects_CFC_health <- ggpredict(model_health, terms = c("SCI", "BGU_group[CFC]"))
+
 
 effects_health <- rbind(transform(effects_TL_health, treatment = "TL"),
-                       transform(effects_TC_health, treatment = "TC"))
+                        transform(effects_TC_health, treatment = "TC"),
+                        transform(effects_CFL_health, treatment = "CFL"),
+                        transform(effects_CFC_health, treatment = "CFC"))
 
 effects_health$treatment <- factor(effects_health$treatment, 
-                                  levels = c("TC", "TL"), 
-                                  labels = c("Conservative", "Liberal"))
+                                  levels = c("TL", "TC", "CFL", "CFC"), 
+                                  labels = c("Trump Liberal", "Trump Conservative",
+                                             "CF Liberal", "CF Conservative"))
 
-health_plot_sci <- ggplot(effects_health, aes(x = x, y = predicted, color = treatment)) +
+# Subset the data for Trump 
+trump_effects_health <- subset(effects_health, treatment %in% c("Trump Liberal", "Trump Conservative"))
+
+# Subset the data for Close Friend 
+cf_effects_health <- subset(effects_health, treatment %in% c("CF Liberal", "CF Conservative"))
+
+
+# Plot for Trump treatments
+health_plot_trump <- ggplot(trump_effects_health, aes(x = x, y = predicted, color = treatment)) +
   geom_line(aes(group = treatment), size = 1) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), alpha = 0.2) +
-  labs(x = "Social Conformism Index (SCI)",
-       y = "Health Care Policy Position",
-       color = "Treatment",
-       fill = "Treatment") +
+  labs(y = "Health Policy Position",
+       x = "Social Conformism Index (SCI)",  color = "Treatment", fill = "Treatment") +
   theme_minimal() +
-  theme(legend.position = "bottom",
-        axis.title.x = element_text(size = 14),       
-        axis.title.y = element_text(size = 14),     
-        legend.text = element_text(size = 12)) +
-  scale_color_manual(values = c("Conservative" = "black", "Liberal" = "#A0A0A0")) +
-  scale_fill_manual(values = c("Conservative" = "black", "Liberal" = "#A0A0A0"))
+  theme(legend.position = "bottom") +
+  scale_color_manual(values = c("Trump Liberal" = "black", "Trump Conservative" = "#A0A0A0"),
+                     labels = c("Trump\nLiberal", "Trump\nConservative")) +
+  scale_fill_manual(values = c("Trump Liberal" = "black", "Trump Conservative" = "#A0A0A0"),
+                    labels = c("Trump\nLiberal", "Trump\nConservative")) +
+  scale_y_continuous(breaks = seq(-1, 1.5, by = 0.5), limits = c(-1.0, 1.5))
        
- 
+health_plot_trump 
 
-health_plot_sci
+# Plot for Close Friend treatments
+health_plot_cf <- ggplot(cf_effects_health, aes(x = x, y = predicted, color = treatment)) +
+  geom_line(aes(group = treatment), size = 1) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), alpha = 0.2) +
+  labs(y = "Health Policy Position",
+       x = "Social Conformism Index (SCI)", color = "", fill = "") +
+  theme_minimal() +
+  theme(legend.position = "bottom", axis.title.y = element_blank()) +
+  scale_color_manual(values = c("CF Liberal" = "black", "CF Conservative" = "#A0A0A0"),
+                     labels = c("Close Friend\nLiberal", "Close Friend\nConservative")) +
+  scale_fill_manual(values = c("CF Liberal" = "black", "CF Conservative" = "#A0A0A0"),
+                    labels = c("Close Friend\nLiberal", "Close Friend\nConservative")) +
+  scale_y_continuous(breaks = seq(-1, 1.5, by = 0.5), limits = c(-1.0, 1.5))
+
+health_plot_cf
+
+# Combine the plots into one
+health_plot_final <- grid.arrange(health_plot_trump, health_plot_cf, ncol = 2, widths = c(1.1, 1.0)) 
+
+# Save the combined plot
+ggsave("health_plot_final.png", health_plot_final, width = 6, height = 5, dpi = 600)
 ```
 
 <!-- I also like this one --> 
@@ -485,7 +689,9 @@ health_plot_sci
 Join the plots
 
 ```{r}
-interaction_SCI <- grid.arrange(guns_plot_sci, health_plot_sci, ncol = 1, heights = c(1, 1.2)) 
+interaction_SCI <- grid.arrange(guns_plot_trump, guns_plot_cf, 
+                                health_plot_trump, health_plot_cf,
+                                ncol = 2, widths = c(1.1, 1.0)) 
 
 ggsave("interaction_SCI.png", interaction_SCI, width = 6, height = 8, dpi = 600)
 ```
