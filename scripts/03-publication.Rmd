@@ -18,13 +18,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r message=FALSE, warning=FALSE}
 pacman::p_load(modelsummary, pwr, survey, broom, dplyr, tidyr, knitr, kableExtra, gt,
-               rstatix, ggeffects, ggplot2, gridExtra, magrittr, xtable, psych)
+               rstatix, ggeffects, ggplot2, gridExtra, magrittr, xtable, psych, stringr, ggeffects)
 ```
 
 # Open data
 
 ```{r}
-#load("/Users/franciscacastro/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/environment.Rdata") mac
+#load("/Users/franciscacastro/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/environment.Rdata") #mac
 load("C:/Users/Francisca/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/environment.Rdata") #windows
 ```
 
@@ -78,7 +78,8 @@ ate_plot <- ggplot(ate_m1, aes(x = term, y = estimate)) +
   theme(legend.position = "none",
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        panel.background = element_blank())
+        panel.background = element_blank(),
+        axis.title.x = element_text(margin = margin(t = 20, b = 10)))
 
 ate_plot
 
@@ -91,47 +92,116 @@ ggsave("C:/Users/Francisca/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/outp
 ```{r}
 model2 <- lm(policy_opinion ~ male + party_id + treatment_group*party_id, data = data_long)
 
-m2_TL <- ggpredict(model2, terms = c("party_id", "treatment_group[TL]"))
-m2_TC <- ggpredict(model2, terms = c("party_id", "treatment_group[TC]"))
-m2_CFL <- ggpredict(model2, terms = c("party_id", "treatment_group[CFL]"))
-mw_CFC <- ggpredict(model2, terms = c("party_id", "treatment_group[CFC]"))
+# CIs
+tidy_m2 <- tidy(model2) %>%
+  mutate(conf.low = estimate - 1.96 * std.error,
+         conf.high = estimate + 1.96 * std.error)
 
-model2_table <- rbind(transform(m2_TL, treatment = "TL"),
-                      transform(m2_TC, treatment = "TC"),
-                      transform(m2_CFL, treatment = "CFL"),
-                      transform(mw_CFC, treatment = "CFC"))
+term_labels <- c(
+  "treatment_groupTL" = "Democrat:Liberal Trump",
+  "treatment_groupTC" = "Democrat:Conservative Trump",
+  "treatment_groupCFL" = "Democrat:Liberal Close Friend",
+  "treatment_groupCFC" = "Democrat:Conservative Close Friend",
+  "party_idIndependent/Other:treatment_groupTL" = "Independent/Other:Liberal Trump",
+  "party_idRepublican:treatment_groupTL" = "Republican:Liberal Trump",
+  "party_idIndependent/Other:treatment_groupTC" = "Independent/Other:Conservative Trump",
+  "party_idRepublican:treatment_groupTC" = "Republican:Conservative Trump",
+  "party_idIndependent/Other:treatment_groupCFL" = "Independent/Other:Liberal Close Friend",
+  "party_idRepublican:treatment_groupCFL" = "Republican:Liberal Close Friend",
+  "party_idIndependent/Other:treatment_groupCFC" = "Independent/Other:Conservative Close Friend",
+  "party_idRepublican:treatment_groupCFC" = "Republican:Conservative Close Friend")
 
-model2_table$treatment <- factor(model2_table$treatment,
-                                 levels = c("TL", "TC", "CFL", "CFC"),
-                                 labels = c("Liberal Trump", "Conservative Trump",
-                                            "Liberal Close Friend", "Conservative Close Friend"))
+# Relabel terms and combine main and interaction effects
+ate_m2 <- tidy_m2 %>%
+  mutate(term = if_else(term %in% names(term_labels), term_labels[term], term)) %>%
+  filter(term != "(Intercept)")  # Exclude intercept from this dataframe
 
-model2_plot <- ggplot(model2_table, aes(x = treatment, y = predicted, group = x)) +
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high, color = x),
-                width = 0.2, position = position_dodge(width = 0.25)) +
-  geom_point(aes(color = x), size = 3, position = position_dodge(width = 0.25)) +
+# Extract intercept (effect for Democrats)
+intercept_m2 <- filter(tidy_m2, term == "(Intercept)")
+
+# Add the intercept as the effect for Democrats
+ate_m2 %<>%
+  add_row(term = "Democrat:Baseline",
+          estimate = intercept_m2$estimate,
+          std.error = intercept_m2$std.error,
+          conf.low = intercept_m2$estimate - 1.96 * intercept_m2$std.error,
+          conf.high = intercept_m2$estimate + 1.96 * intercept_m2$std.error)
+
+# Add column for treatment and party id to use them in the plot
+ate_m2 %<>%
+  mutate(
+    treatment = case_when(
+      str_detect(term, "Liberal Trump") ~ "Liberal Trump",
+      str_detect(term, "Conservative Trump") ~ "Conservative Trump",
+      str_detect(term, "Liberal Close Friend") ~ "Liberal Close Friend",
+      str_detect(term, "Conservative Close Friend") ~ "Conservative Close Friend"
+      # Exclude baseline by not specifying a condition for it
+    ),
+    party_id = case_when(
+      str_detect(term, "^Democrat:") ~ "Democrat",
+      str_detect(term, "^Independent/Other:") ~ "Independent/Other",
+      str_detect(term, "^Republican:") ~ "Republican"
+      # Exclude baseline by not specifying a condition for it
+    )
+  ) %>%
+  # Exclude rows where 'treatment' is NA which corresponds to the baseline
+  filter(!is.na(treatment))
+
+
+# Plot
+ate_plot2 <- ggplot(ate_m2, aes(x = term, y = estimate)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+                position = position_dodge(width = 0.7), width = 0.05) +
+  geom_point(position = position_dodge(width = 0.7), size = 3) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
-  labs(y = "ATE Policy Support", color = "Party Identification") + 
+  xlab("Treatment Conditions") +
+  ylab("Average Treatment Effect") +
+  scale_x_discrete(labels = c("Liberal\nTrump",
+                              "Conservative\nTrump",
+                              "Liberal\nClose Friend",
+                              "Conservative\nClose Friend")) +
+  scale_y_continuous(limits = c(-0.25, 0.25)) +
   theme_minimal() +
-  theme(axis.title.x = element_blank(), legend.text = element_text(size = 8),
-        legend.title = element_text(size = 8),
-        legend.position = "bottom", panel.grid.major = element_blank(),
+  theme(legend.position = "none",
+        panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        panel.background = element_blank()) +
-  scale_y_continuous(breaks = seq(-0.3, 0.6, by = 0.30), limits = c(-0.3, 0.6)) +
+        panel.background = element_blank())
+
+# Relevel
+ate_m2$treatment <- factor(ate_m2$treatment, levels = c(
+  "Liberal Trump", 
+  "Conservative Trump", 
+  "Liberal Close Friend", 
+  "Conservative Close Friend"))
+
+ate_plot2 <- ggplot(ate_m2, aes(x = treatment, y = estimate, color = party_id)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+                position = position_dodge(width = 0.7), width = 0.05) +
+  geom_point(position = position_dodge(width = 0.7), size = 3) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  labs(x = "Treatments", y = "Average Treatment Effect", color = "Party Identification") +
+  scale_y_continuous(limits = c(-0.5, 0.5)) +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        legend.title = element_text(size = 8),
+        legend.text = element_text(size = 8),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.title.x = element_text(margin = margin(t = 20, b = 10))) +
+  scale_color_manual(values = c("Democrat" = "black", 
+                                "Independent/Other" = "#787878", 
+                                "Republican" = "gray")) +
   scale_x_discrete(labels = c("Liberal\nTrump", 
                               "Conservative\nTrump", 
                               "Liberal\nClose Friend", 
-                              "Conservative\nClose Friend")) +
-  scale_color_manual(values = c("Democrat" = "black", 
-                                "Independent/Other" = "#787878", 
-                                "Republican" = "gray")) 
+                              "Conservative\nClose Friend")) 
 
+ate_plot2
 
-model2_plot
 
 ggsave("C:/Users/Francisca/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/output/figures/ate_party_id.png", 
-       model2_plot, width = 5, height = 4, dpi = 600)
+       ate_plot2, width = 5, height = 4, dpi = 600)
 ```
 
 
@@ -153,16 +223,16 @@ model3_table <- rbind(transform(m3_TL, treatment = "TL"),
 model3_table$treatment <- factor(model3_table$treatment,
                                  levels = c("TL", "TC", "CFL", "CFC"),
                                  labels = c("Liberal Trump", "Conservative Trump",
-                                            "Liberal Close Friend", "Conservative Close Friend"))
-
+                                            "Liberal Close Friend", 
+                                            "Conservative Close Friend"))
 
 model3_plot <- ggplot(model3_table, aes(x = x, y = predicted, group = treatment)) +
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
-                width = 0.15, position = position_dodge(width = 0.25), color = "black") +
-  geom_point(size = 3, position = position_dodge(width = 0.25), color = "black") +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, group = treatment), 
+              fill = "grey80", alpha = 0.5) +  # Confidence intervals
+  geom_line(color = "black", size = 1) +  # Set line color to black
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
   facet_wrap(~treatment, scales = "free", ncol = 2) +
-  labs(y = "Average Treatment Effect", x = "Level of Political Knowledge") +
+  labs(y = "Predicted ATE", x = "Level of Political Knowledge") +
   theme_minimal() +
   theme(legend.position = "none",
         strip.background = element_blank(),
@@ -170,9 +240,9 @@ model3_plot <- ggplot(model3_table, aes(x = x, y = predicted, group = treatment)
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_blank(),
-        panel.border = element_rect(linetype = "solid", fill = NA, color = "black", size = 0.5)) +
-  scale_x_continuous(breaks = 0:6) +
-  coord_cartesian(ylim = c(-0.1, 0.6))  # Set y-axis limits with coord_cartesian
+        panel.border = element_rect(linetype = "solid", 
+                                    fill = NA, color = "black", size = 0.5)) +
+  coord_cartesian(ylim = c(-0.2, 0.65))
 
 
 model3_plot
@@ -199,7 +269,8 @@ model4_table <- rbind(transform(m4_TL, treatment = "TL"),
 model4_table$treatment <- factor(model4_table$treatment, 
                                   levels = c("TL", "TC", "CFL", "CFC"), 
                                   labels = c("Liberal Trump", "Conservative Trump",
-                                             "Liberal Close Friend", "Conservative Close Friend"))
+                                             "Liberal Close Friend", 
+                                             "Conservative Close Friend"))
 
 # Subset the data for Trump 
 m4_trump_effects <- subset(model4_table, treatment %in% c("Liberal Trump", "Conservative Trump"))
@@ -208,48 +279,52 @@ m4_trump_effects <- subset(model4_table, treatment %in% c("Liberal Trump", "Cons
 m4_cf_effects <- subset(model4_table, treatment %in% c("Liberal Close Friend", "Conservative Close Friend"))
 
 # Plot for Trump treatments
-m4_plot_trump <- ggplot(m4_trump_effects, aes(x = x, y = predicted, color = treatment)) +
-  geom_line(aes(group = treatment), size = 1) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), alpha = 0.2) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +  # Add dashed line at y=0
-  labs(y = "Average Treatment Effect", title = "Trump Treatments",
-       x = "Social Conformism Index (SCI)",  color = " ", fill = " ") +
+m4_plot_trump <- ggplot(m4_trump_effects, aes(x = x, y = predicted, group = treatment)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+                width = 0.05, position = position_dodge(width = 0.25), color = "black") +
+  geom_point(size = 2, position = position_dodge(width = 0.25), color = "black") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  facet_wrap(~treatment, scales = "free", ncol = 2) +
+  labs(y = "Predicted ATE", x = "Social Conformism Index (SCI)") +
   theme_minimal() +
-  theme(legend.position = "bottom",
-        panel.grid.major = element_blank(),  # Remove major grid lines
-        panel.grid.minor = element_blank(),  # Remove minor grid lines
-        panel.background = element_rect(fill = "white", colour = "black"),
-        legend.text = element_text(size = 7)) + 
-  scale_color_manual(values = c("Liberal Trump" = "black", "Conservative Trump" = "#A0A0A0")) +
-  scale_fill_manual(values = c("Liberal Trump" = "black", "Conservative Trump" = "#A0A0A0")) +
-  ylim(-0.25, 0.5)
+  theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 10),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(linetype = "solid", 
+                                    fill = NA, color = "black", size = 0.5)) +
+  coord_cartesian(ylim = c(-0.1, 0.6))  # Set y-axis limits with coord_cartesian
 
 m4_plot_trump
 
 
 # Plot for Close Friend treatments
-m4_plot_cf <- ggplot(m4_cf_effects, aes(x = x, y = predicted, color = treatment)) +
-  geom_line(aes(group = treatment), size = 1) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = treatment), alpha = 0.2) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +  # Add dashed line at y=0
-  labs(y = "Average Treatment Effect", title = "Close Friend Treatments",
-       x = "Social Conformism Index (SCI)", color = " ", fill = " ") +
+m4_plot_cf <- ggplot(m4_cf_effects, aes(x = x, y = predicted, group = treatment)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+                width = 0.05, position = position_dodge(width = 0.25), color = "black") +
+  geom_point(size = 2, position = position_dodge(width = 0.25), color = "black") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  facet_wrap(~treatment, scales = "free", ncol = 2) +
+  labs(y = "Predicted ATE", x = "Social Conformism Index (SCI)") +
   theme_minimal() +
-  theme(legend.position = "bottom",
-        panel.grid.major = element_blank(),  # Remove major grid lines
-        panel.grid.minor = element_blank(),  # Remove minor grid lines
-        panel.background = element_rect(fill = "white", colour = "black"),
-        legend.text = element_text(size = 7)) +  # Add background
-  scale_color_manual(values = c("Liberal Close Friend" = "black", "Conservative Close Friend" = "#A0A0A0")) +
-  scale_fill_manual(values = c("Liberal Close Friend" = "black", "Conservative Close Friend" = "#A0A0A0")) +
-  ylim(-0.25, 0.5)
+  theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 10),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(linetype = "solid", 
+                                    fill = NA, color = "black", size = 0.5)) +
+  coord_cartesian(ylim = c(-0.1, 0.6))  # Set y-axis limits with coord_cartesian
 
 m4_plot_cf
 
 m4_plot_final <- grid.arrange(m4_plot_trump, m4_plot_cf, nrow = 2) 
 
 ggsave("C:/Users/Francisca/Dropbox/Shared_ERC_Francisca_and_Jenny/r-project/output/figures/ate_sci.png", 
-       m4_plot_final, width = 3.5, height = 7, dpi = 600)
+       m4_plot_final, width = 5, height = 4, dpi = 600)
 ```
 
 
@@ -387,6 +462,122 @@ msummary(model2,
          statistic = NULL,
          output = 'markdown')
 ```
+
+
+### Figure C3.1 party ID as in Barber & Pope 2019
+
+```{r}
+#regression for average treatment effect among Republicans
+bp_republicans <- list(
+  "Trump Conservative" = lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Republican' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'TC'),]),
+  "Trump Liberal" = lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Republican' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'TL'),]),
+  "Close Friend Conservative" = lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Republican' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'CFC'),]),
+  "Close Friend Liberal" = lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Republican' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'CFL'),]))
+
+msummary(bp_republicans,
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         output = 'markdown')
+```
+
+```{r}
+#regression for average treatment effect among Independents/Other
+bp_indep <- list(
+  "Trump Conservative" = lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Independent/Other' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'TC'),]),
+  "Trump Liberal" = lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Independent/Other' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'TL'),]),
+  "Close Friend Conservative" = lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Independent/Other' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'CFC'),]),
+  "Close Friend Liberal" = lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Independent/Other' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'CFL'),]))
+
+msummary(bp_indep,
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         output = 'markdown')
+```
+
+
+```{r}
+#regression for average treatment effect among Democrats
+bp_democrats <- list(
+  "Trump Conservative" = lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Democrat' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'TC'),]),
+  "Trump Liberal" = lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Democrat' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'TL'),]),
+  "Close Friend Conservative" = lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Democrat' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'CFC'),]),
+  "Close Friend Liberal" = lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Democrat' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'CFL'),]))
+
+msummary(bp_democrats,
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         output = 'markdown')
+```
+
+### Plot
+
+```{r}
+# TC treatment
+model_tc_1 <- lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Republican' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'TC'),])
+model_tc_2 <- lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Democrat' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'TC'),])
+model_tc_3 <- lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Independent/Other' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'TC'),])
+
+trump.conservative.treat <- c(model_tc_1$coef[3], model_tc_2$coef[3], model_tc_3$coef[3])
+trump.conservative.se <- c(coef(summary(model_tc_1))[, "Std. Error"][3], coef(summary(model_tc_2))[, "Std. Error"][3], coef(summary(model_tc_3))[, "Std. Error"][3])
+trump.lower.cons <- trump.conservative.treat - 1.96*trump.conservative.se
+trump.upper.cons <- trump.conservative.treat + 1.96*trump.conservative.se
+
+# TL Treatment
+model_tl_1 <- lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Republican' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'TL'),])
+model_tl_2 <- lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Democrat' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'TL'),])
+model_tl_3 <- lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Independent/Other' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'TL'),])
+
+trump.liberal.treat <- c(model_tl_1$coef[3], model_tl_2$coef[3], model_tl_3$coef[3])
+trump.liberal.se <- c(coef(summary(model_tl_1))[, "Std. Error"][3], coef(summary(model_tl_2))[, "Std. Error"][3], coef(summary(model_tl_3))[, "Std. Error"][3])
+trump.lower.liberal <- trump.liberal.treat - 1.96*trump.liberal.se
+trump.upper.liberal <- trump.liberal.treat + 1.96*trump.liberal.se
+
+# CFC treatment
+model_cfc_1 <- lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Republican' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'CFC'),])
+model_cfc_2 <- lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Democrat' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'CFC'),])
+model_cfc_3 <- lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Independent/Other' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'CFC'),])
+
+cf.conservative.treat <- c(model_cfc_1$coef[3], model_cfc_2$coef[3], model_cfc_3$coef[3])
+cf.conservative.se <- c(coef(summary(model_cfc_1))[, "Std. Error"][3], coef(summary(model_cfc_2))[, "Std. Error"][3], coef(summary(model_cfc_3))[, "Std. Error"][3])
+cf.lower.cons <- cf.conservative.treat - 1.96*cf.conservative.se
+cf.upper.cons <- cf.conservative.treat + 1.96*cf.conservative.se
+
+# CFL Treatment
+model_cfl_1 <- lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Republican' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'CFL'),])
+model_cfl_2 <- lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Democrat' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'CFL'),])
+model_cfl_3 <- lm(policy_opinion ~  male + treatment_group, data = data_long[data_long$party_id == 'Independent/Other' & (data_long$treatment_group == 'control' | data_long$treatment_group == 'CFL'),])
+
+cf.liberal.treat <- c(model_cfl_1$coef[3], model_cfl_2$coef[3], model_cfl_3$coef[3])
+cf.liberal.se <- c(coef(summary(model_cfl_1))[, "Std. Error"][3], coef(summary(model_cfl_2))[, "Std. Error"][3], coef(summary(model_cfl_3))[, "Std. Error"][3])
+cf.lower.liberal <- cf.liberal.treat - 1.96*cf.liberal.se
+cf.upper.liberal <- cf.liberal.treat + 1.96*cf.liberal.se
+
+
+bp_plot_data <- data.frame(
+  party = rep(c("Republican", "Democrat", "Independent/Other"), 2),
+  treatment = c(rep("Conservative Trump", 3), rep("Liberal Trump", 3), rep("Conservative CF", 3), rep("Liberal CF", 3)),
+  estimate = c(trump.conservative.treat, trump.liberal.treat, cf.conservative.treat, cf.liberal.treat),
+  lower_ci = c(trump.lower.cons, trump.lower.liberal, cf.lower.cons, cf.lower.liberal),
+  upper_ci = c(trump.upper.cons, trump.upper.liberal, cf.upper.cons, cf.upper.liberal))
+
+dodge_width <- 0.2
+
+ggplot(bp_plot_data, aes(x = treatment, y = estimate, color = party, group = party)) +
+  geom_point(position = position_dodge(width = dodge_width)) +
+  geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci), width = 0.1, position = position_dodge(width = dodge_width)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  theme_minimal() +
+  labs(
+    title = "Average Treatment Effect Across Issues",
+    x = "Treatment Condition",
+    y = "Increased Probability of Voting for Liberal Policy"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.title = element_blank()
+  ) +
+  scale_color_manual(values = c("Democrat" = "blue", "Independent/Other" = "green", "Republican" = "red"))
+
+
+```
+
 
 ### Table C3.2 With Political Knowledge
 
