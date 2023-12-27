@@ -8,50 +8,12 @@ pacman::p_load(haven, dplyr, tidyr, magrittr, forcats, ggplot2, psych, xtable)
 
 # 2) Load data
 
-data_raw <- read_sav("data/01-raw-data/CCES21_BGU_OUTPUT_spss_old.sav")
-
-str(data_raw)
-
-names(data_raw)
+data_raw <- read_sav("CCES21_BGU_OUTPUT_spss_old.sav")
 
 # 3) Data cleaning
 
-### NAs replacement
-# Some of the varaibles have `__NA__` instead of normal NA, so it's necessary to
-# change that. 
-
-data_raw %<>%
-  mutate_if(is.character, ~ ifelse(. == "__NA__", NA, .)) 
-
-data_raw %<>%
-  mutate(BGU_group = as.numeric(as.character(BGU_group)),
-         race = as.numeric(as.character(race)),
-         gender4 = as.numeric(as.character(gender4)),
-         BGU_Trumpapproval = as.numeric(as.character(BGU_Trumpapproval)),
-    CC21_330a = as.numeric(as.character(CC21_330a)),
-    pid3 = as.numeric(as.character(pid3)),
-    faminc_new = as.numeric(as.character(faminc_new)),
-    educ = as.numeric(as.character(educ)),
-    BGU_conf1 = as.numeric(as.character(BGU_conf1)),
-    BGU_conf2 = as.numeric(as.character(BGU_conf2)),
-    BGU_conf3 = as.numeric(as.character(BGU_conf3)),
-    BGU_conf4 = as.numeric(as.character(BGU_conf4)),
-    BGU_conf5 = as.numeric(as.character(BGU_conf5)),
-    BGU_conf6 = as.numeric(as.character(BGU_conf6)),
-    BGU_knowledge1 = as.numeric(as.character(BGU_knowledge1)),
-    BGU_knowledge2 = as.numeric(as.character(BGU_knowledge2)),
-    BGU_knowledge3 = as.numeric(as.character(BGU_knowledge3)),
-    BGU_knowledge4 = as.numeric(as.character(BGU_knowledge4)),
-    BGU_knowledge5 = as.numeric(as.character(BGU_knowledge5)),
-    BGU_knowledge6 = as.numeric(as.character(BGU_knowledge6)),
-    CC21_330a = as.numeric(as.character(CC21_330a)), #ideology
-    ideo5 = as.numeric(as.character(ideo5)), # ideology 5 points
-    pid7 = as.numeric(as.character(pid7)), #party id 7
-    newsint = as.numeric(as.character(newsint))) #political interest
-
-
 ### Keep only necessary variables
-data_filtered <- data_raw %>%
+data_raw %<>%
   select(caseid, teamweight, birthyr, educ, race, CC21_330a, pid3, pid7, gender4, 
          BGU_Trumpapproval, CC21_315a, BGU_group,
          BGU_control1, BGU_control2, BGU_control3, BGU_control4, BGU_control5,
@@ -67,8 +29,40 @@ data_filtered <- data_raw %>%
          BGU_knowledge1,BGU_knowledge2,BGU_knowledge3,BGU_knowledge4,BGU_knowledge5,
          BGU_knowledge6, ideo5, pid7, newsint, faminc_new)
 
+### NAs replacement
+# Some of the varaibles have `__NA__` instead of normal NA, so it's necessary to
+# change that. 
 
-### Now, let's modify the database so it's in long format, as in Barber & Pope
+data_raw %<>%
+  mutate_if(is.character, ~ ifelse(. == "__NA__", NA, .)) 
+
+data_raw %<>%
+  mutate(BGU_group = as.numeric(as.character(BGU_group)),
+         race = as.numeric(as.character(race)),
+         gender4 = as.numeric(as.character(gender4)),
+         BGU_Trumpapproval = as.numeric(as.character(BGU_Trumpapproval)),
+         CC21_330a = as.numeric(as.character(CC21_330a)),
+         pid3 = as.numeric(as.character(pid3)),
+         faminc_new = as.numeric(as.character(faminc_new)),
+         educ = as.numeric(as.character(educ)),
+         BGU_conf1 = as.numeric(as.character(BGU_conf1)),
+         BGU_conf2 = as.numeric(as.character(BGU_conf2)),
+         BGU_conf3 = as.numeric(as.character(BGU_conf3)),
+         BGU_conf4 = as.numeric(as.character(BGU_conf4)),
+         BGU_conf5 = as.numeric(as.character(BGU_conf5)),
+         BGU_conf6 = as.numeric(as.character(BGU_conf6)),
+         BGU_knowledge1 = as.numeric(as.character(BGU_knowledge1)),
+         BGU_knowledge2 = as.numeric(as.character(BGU_knowledge2)),
+         BGU_knowledge3 = as.numeric(as.character(BGU_knowledge3)),
+         BGU_knowledge4 = as.numeric(as.character(BGU_knowledge4)),
+         BGU_knowledge5 = as.numeric(as.character(BGU_knowledge5)),
+         BGU_knowledge6 = as.numeric(as.character(BGU_knowledge6)),
+         CC21_330a = as.numeric(as.character(CC21_330a)), #ideology
+         ideo5 = as.numeric(as.character(ideo5)), # ideology 5 points
+         pid7 = as.numeric(as.character(pid7)), #party id 7
+         newsint = as.numeric(as.character(newsint))) #political interest
+
+# 4) Creation of long data format
 
 data_long <- data_filtered %>%
   pivot_longer(
@@ -136,7 +130,6 @@ data_long$treatment_status <- ifelse(data_long$treatment_group == "control", 0, 
 ### Double-check consistency
 table(data_long$control, data_long$treatment_group)
 table(data_long$confriend, data_long$treatment_group)
-
 table(data_filtered$BGU_control2, exclude = NULL) #usually around 800 NAs
 table(data_filtered$BGU_friendcon5, exclude = NULL)
 table(data_filtered$BGU_Trumplib9, exclude = NULL)
@@ -248,11 +241,14 @@ data_long %<>%
 #5   Strongly disagree
 #9   Don't know
 
-#Given that some statements are phrased in a way that measure non-conformism or individualism, we need to change that so all the statements range from low levels of conformism to high levels of conformism.
+# - Given that some statements are phrased in a way that measure non-conformism 
+# - or individualism, we need to change that so all the statements range from 
+# - low levels of conformism to high levels of conformism.
 
-#Questions that need to be reordered: BGU_conf2, BGU_conf4, and BGU_conf5
+# - Questions that need to be reordered: BGU_conf2, BGU_conf4, and BGU_conf5
 
-#Additionally, neither agree nor disagree and don't know will be mixed in the same one. New categories will be:
+# - Additionally, neither agree nor disagree and don't know will be mixed in the 
+# - same one. New categories will be:
 #1. Strongly disagree (low social conformism) - 4 and 5
 #2. Don't know/neither agree or disagree - 9 and 3
 #3. Agree/strongly agree (high social conformism) - 2 and 1

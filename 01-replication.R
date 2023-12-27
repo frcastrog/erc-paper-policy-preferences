@@ -360,7 +360,8 @@ descriptive_stats_long
 ### Table B2.1 - Test for Cronbach's alpha
 
 items_sci_full <- data_long %>% 
-  select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf4_rec, BGU_conf5_rec, BGU_conf6_rec)
+  select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf4_rec, 
+         BGU_conf5_rec, BGU_conf6_rec)
 
 ca_sci <- alpha(items_sci_full, check.keys=TRUE)
 print(ca_sci)
@@ -439,7 +440,8 @@ pol_knowledge_plot <- data_long[data_long$policy_issue == 1, ] %>%
   geom_bar(stat = "identity") +
   labs(x = "Number of Correct Answers",
        y = "Number of Observations") +
-  scale_x_continuous(breaks = seq(min(data_long$knowledge), max(data_long$knowledge), by = 1)) +
+  scale_x_continuous(breaks = seq(min(data_long$knowledge), 
+                                  max(data_long$knowledge), by = 1)) +
   scale_y_continuous(limits = c(0, 250)) +  
   theme_minimal()
 
