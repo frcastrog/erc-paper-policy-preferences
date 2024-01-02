@@ -18,21 +18,21 @@ Information Systems Engineering • Ben-Gurion University of the Negev
 
 This research note investigates how political figures and social
 influences shape individual policy preferences. Specifically, it
-revisits the model proposed by (Barber and Pope 2018, 2023) regarding
-Donald Trump’s impact on people’s liberal or conservative stances toward
-a set of policy issues in surveys fielded during Trump’s presidency. We
-explore whether Trump’s influence persists post-presidency as well as
-whether an additional significant factor in the contemporary social
-media age may also affect policy views, namely the opinion of a close
-friend. Results indicate that Trump and a close friend’s cues do not
-affect policy support and have a limited effect when examining specific
-policies, such as taxes, immigration, and background checks. These
-findings contribute to existing research by demonstrating the waning
-influence of a prior President no longer in office, as well as the
-negligible effect of the alternative influence of a hypothetical close
-friend as measured in our survey experiment. We conclude by outlining
-additional ways in which the potential close friend effect could be
-investigated in future research.
+revisits the model proposed by Barber and Pope (2018) and Barber and
+Pope (2023) regarding Donald Trump’s impact on people’s liberal or
+conservative stances toward a set of policy issues in surveys fielded
+during Trump’s presidency. We explore whether Trump’s influence persists
+post-presidency as well as whether an additional significant factor in
+the contemporary social media age may also affect policy views, namely
+the opinion of a close friend. Results indicate that Trump and a close
+friend’s cues do not affect policy support and have a limited effect
+when examining specific policies, such as taxes, immigration, and
+background checks. These findings contribute to existing research by
+demonstrating the waning influence of a prior President no longer in
+office, as well as the negligible effect of the alternative influence of
+a hypothetical close friend as measured in our survey experiment. We
+conclude by outlining additional ways in which the potential close
+friend effect could be investigated in future research.
 
 ------------------------------------------------------------------------
 
