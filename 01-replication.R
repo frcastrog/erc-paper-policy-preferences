@@ -5,7 +5,7 @@
 # 1) Load packages
 
 pacman::p_load(haven, dplyr, tidyverse, magrittr, forcats, ggplot2, psych, xtable,
-               broom, ggeffects, gridExtra, knitr)
+               broom, ggeffects, gridExtra, knitr, modelsummary)
 
 options(scipen = 999)
 
