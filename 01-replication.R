@@ -5,7 +5,7 @@
 # 1) Load packages
 
 pacman::p_load(haven, dplyr, tidyverse, magrittr, forcats, ggplot2, psych, xtable,
-               broom, ggeffects, gridExtra, knitr, modelsummary)
+               broom, ggeffects, gridExtra, knitr, modelsummary, purrr, kableExtra)
 
 options(scipen = 999)
 
@@ -179,6 +179,9 @@ ggsave("outputs/figures/ate_plot_partyid.png", plot = ate_plot2, dpi = 300, widt
 
 model3 <- lm(policy_opinion ~ male + pid3 + factor(knowledge) + 
                treatment_group*factor(knowledge), data = data_long)
+
+model3b <- lm(policy_opinion ~ male + pid3 + knowledge + 
+               treatment_group*knowledge, data = data_long)
 
 m3_TL <- ggpredict(model3, terms = c("knowledge", "treatment_group[TL]"))
 m3_TC <- ggpredict(model3, terms = c("knowledge", "treatment_group[TC]"))
@@ -442,6 +445,37 @@ msummary(model_4,
          estimate = "{estimate}{stars} ({std.error})",
          statistic = NULL,
          output = 'markdown')
+
+### Table D1.1 - Bonferroni corrections
+
+# - Extract Model Summaries
+
+model1_tidy <- tidy(model1)
+model2_tidy <- tidy(model2)
+model3_tidy <- tidy(model3b)
+model4_tidy <- tidy(model_4)
+
+# - Combine models and apply bonferroni correction
+
+all_models_tidy <- bind_rows(mutate(model1_tidy, model = "Model 1"),
+                             mutate(model2_tidy, model = "Model 2"),
+                             mutate(model3_tidy, model = "Model 3"),
+                             mutate(model4_tidy, model = "Model 4"))
+
+all_models_tidy <- all_models_tidy %>%
+  group_by(term) %>%
+  mutate(
+    Bonferroni = p.adjust(p.value, method = "bonferroni"),
+    p.value = round(p.value, 3),         
+    Bonferroni = round(Bonferroni, 3),   
+    estimate = round(estimate, 3)        
+  ) %>%
+  ungroup() %>%
+  select(model, term, estimate, p.value, Bonferroni)  
+
+
+kable(all_models_tidy, "latex", booktabs = TRUE, 
+      col.names = c("Model", "Term", "Estimate", "P-Value", "Bonferroni")) 
 
 ### Figure 1 - Distribution political knowledge
 
