@@ -1,6 +1,6 @@
 #-------------------------------Data Preparation-------------------------------#
 #-Author: Francisca Castro ----------------------- Created: September 18, 2023-#
-#-R Version: 4.3.1 -------------------------------- Revised: December 27, 2023-#
+#-R Version: 4.3.1 ---------------------------------- Revised: January 4, 2024-#
 
 # 1) Load packages
 
@@ -8,7 +8,7 @@ pacman::p_load(haven, dplyr, tidyr, magrittr, forcats, ggplot2, psych, xtable)
 
 # 2) Load data
 
-data_raw <- read_sav("CCES21_BGU_OUTPUT_spss_old.sav")
+data_raw <- read_sav("data/data-raw/CCES21_BGU_OUTPUT.sav")
 
 # 3) Data cleaning
 
@@ -64,7 +64,7 @@ data_raw %<>%
 
 # 4) Creation of long data format
 
-data_long <- data_filtered %>%
+data_long <- data_raw %>%
   pivot_longer(
     cols = c(
       BGU_control1, BGU_control2, BGU_control3, BGU_control4, BGU_control5,
@@ -79,16 +79,16 @@ data_long <- data_filtered %>%
     names_to = "policy_positions_raw",
     values_to = "policy_opinion") # shows support oppose 
 
-data_long <- data_long[!is.na(data_long$policy_opinion), ]
+data_long <- data_long[!is.na(data_long$policy_opinion), ] # remove empty rows
 
 data_long %<>% 
-  rename(treatment_group = BGU_group)
+  rename(treatment_group = BGU_group) # create treatment groups
 
 ### Create a new policy position variable that stores all the 9 policy positions where:
 # 1 minimum wage 2 taxes 3 abortion 4 immigration 5 guns 6 health care 7 background checks
 # 8 climate change 9 planned parenthood
 
-data_long <- data_long %>%
+data_long %<>%
   mutate(policy_issue = as.numeric(sub(".*([0-9]+)$", "\\1", policy_positions_raw)))
 
 ### Modify policy_opinion
@@ -130,10 +130,8 @@ data_long$treatment_status <- ifelse(data_long$treatment_group == "control", 0, 
 ### Double-check consistency
 table(data_long$control, data_long$treatment_group)
 table(data_long$confriend, data_long$treatment_group)
-table(data_filtered$BGU_control2, exclude = NULL) #usually around 800 NAs
-table(data_filtered$BGU_friendcon5, exclude = NULL)
-table(data_filtered$BGU_Trumplib9, exclude = NULL)
-table(data_filtered$BGU_Trumplib5, exclude = NULL)
+table(data_raw$BGU_control2, exclude = NULL) #usually around 800 NAs
+table(data_raw$BGU_friendcon5, exclude = NULL)
 # Given that there's usually 800 NAS per position, and there are 5 experimental treatments,
 # it's expected that there will be 4000 NAs per policy position
 
@@ -157,7 +155,7 @@ data_long$male <- ifelse(data_long$gender4 == 1, 1, 0)
 
 table(data_long$male)
 
-#4.  Political knowledge
+#4.  Political knowledge - counts the correct answers per item
 
 data_long %<>%
   mutate(knowledge = as.integer(BGU_knowledge1 == 1) + # Constitution
@@ -292,8 +290,14 @@ table(data_long$BGU_conf6_rec) #validation
 items_sci_full <- data_long %>% 
   select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf4_rec, BGU_conf5_rec, BGU_conf6_rec)
 
-items_sci <- data_long %>% 
+print(alpha(items_sci_full, check.keys=TRUE))
+
+items_sci_reduced <- data_long %>% 
   select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf5_rec, BGU_conf6_rec)
+
+print(alpha(items_sci_reduced, check.keys=TRUE))
+
+
 ####4 and 5 item  removed, reliability of the index is better without it
 
 data_long %<>%
@@ -302,3 +306,9 @@ data_long %<>%
   ungroup()
 
 table(data_long$SCI)
+
+# Save in both RDS and csv formats
+
+saveRDS(data_long, file = "data/derived-data/data_long.rds")
+
+write.csv(data_long, file = "data/derived-data/data_long.csv", row.names = FALSE)

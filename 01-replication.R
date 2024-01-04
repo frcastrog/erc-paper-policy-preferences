@@ -1,16 +1,18 @@
 #------------------------------Replication Script------------------------------#
 #-------------------------------------------------- Created: December 27, 2023-#
-#-R Version: 4.3.1 -------------------------------- Revised: December 29, 2023-#
+#-R Version: 4.3.1 ---------------------------------- Revised: January 4, 2025-#
 
 # 1) Load packages
 
-pacman::p_load(haven, dplyr, tidyr, magrittr, forcats, ggplot2, psych, xtable)
+pacman::p_load(haven, dplyr, tidyverse, magrittr, forcats, ggplot2, psych, xtable,
+               broom, ggeffects, gridExtra, knitr)
 
 options(scipen = 999)
 
 # 1.1) Data
 
 # - This script requires the data produced by `00-data-prep`
+# - Alternative, one can load the data available in `data/derived-data/`
 
 # 2) Paper replication
 
@@ -63,6 +65,9 @@ ate_plot <- ggplot(ate_m1, aes(x = term, y = estimate)) +
         axis.title.x = element_text(margin = margin(t = 20, b = 10)))
 
 ate_plot
+
+ggsave("outputs/figures/ate_plot.png", plot = ate_plot, dpi = 300, width = 8, height = 6)
+
 
 ### Figure 2 - Interaction with Party ID 
 
@@ -168,6 +173,8 @@ ate_plot2 <- ggplot(ate_m2, aes(x = treatment, y = estimate, color = party_id)) 
 
 ate_plot2
 
+ggsave("outputs/figures/ate_plot_partyid.png", plot = ate_plot2, dpi = 300, width = 8, height = 6)
+
 ### Figure 3 - Interaction with political knowledge
 
 model3 <- lm(policy_opinion ~ male + pid3 + factor(knowledge) + 
@@ -192,7 +199,7 @@ model3_table$treatment <- factor(model3_table$treatment,
 model3_plot <- ggplot(model3_table, aes(x = x, y = predicted, group = treatment)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high, group = treatment), 
               fill = "grey80", alpha = 0.5) +  # Confidence intervals
-  geom_line(color = "black", size = 1) +  
+  geom_line(color = "black", linewidth = 1) +  
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
   facet_wrap(~treatment, scales = "free", ncol = 2) +
   labs(y = "Predicted ATE", x = "Level of Political Knowledge") +
@@ -204,12 +211,14 @@ model3_plot <- ggplot(model3_table, aes(x = x, y = predicted, group = treatment)
         panel.grid.minor = element_blank(),
         panel.background = element_blank(),
         panel.border = element_rect(linetype = "solid", 
-                                    fill = NA, color = "black", size = 0.5)) +
+                                    fill = NA, color = "black", linewidth = 0.5)) +
   coord_cartesian(ylim = c(-0.2, 0.65)) +
   scale_x_continuous(breaks = 0:6) 
 
 
 model3_plot
+
+ggsave("outputs/figures/pol_knowledge.png", plot = model3_plot, dpi = 300, width = 8, height = 6)
 
 ### Figure 4 - Interaction with social conformism
 
@@ -282,11 +291,13 @@ m4_plot_cf
 
 m4_plot_final <- grid.arrange(m4_plot_trump, m4_plot_cf, nrow = 2) 
 
+ggsave("outputs/figures/social_conf.png", plot = m4_plot_final, dpi = 300, width = 8, height = 6)
+
 # 3) Supplementary Information Replication
 
 ### Table B1.1 - Mean Demographic Values by Treatment Group
 
-data_balance <- data_long[data_long$policy_position == "1",]
+data_balance <- data_long[data_long$policy_issue == "1",]
 table(data_balance$treatment_group)
 
 by(data_balance$age, data_balance$treatment_group, mean)
@@ -446,3 +457,5 @@ pol_knowledge_plot <- data_long[data_long$policy_issue == 1, ] %>%
   theme_minimal()
 
 pol_knowledge_plot
+
+ggsave("outputs/figures/pol_knowledge_hist.png", plot = pol_knowledge_plot, dpi = 300, width = 8, height = 6)
