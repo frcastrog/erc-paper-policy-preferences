@@ -27,7 +27,9 @@ data_raw %<>%
          BGU_friendcon5, BGU_friendcon6, BGU_friendcon7, BGU_friendcon8, BGU_friendcon9,
          BGU_conf1,BGU_conf2,BGU_conf3,BGU_conf4,BGU_conf5,BGU_conf6,
          BGU_knowledge1,BGU_knowledge2,BGU_knowledge3,BGU_knowledge4,BGU_knowledge5,
-         BGU_knowledge6, ideo5, pid7, newsint, faminc_new)
+         BGU_knowledge6, BGU_discussion1, BGU_discussion2, BGU_discussion3,
+         BGU_discussion4, BGU_discussion5, BGU_discussion6, BGU_discussion7,
+         BGU_discussion8, BGU_discussion9, ideo5, pid7, newsint, faminc_new)
 
 ### NAs replacement
 # Some of the varaibles have `__NA__` instead of normal NA, so it's necessary to
@@ -62,7 +64,146 @@ data_raw %<>%
          pid7 = as.numeric(as.character(pid7)), #party id 7
          newsint = as.numeric(as.character(newsint))) #political interest
 
-# 4) Creation of long data format
+# 4) Creation of indicators
+
+### Political knowledge - counts the correct answers per item
+
+data_raw %<>%
+  mutate(knowledge = as.integer(BGU_knowledge1 == 1) + # Constitution
+           as.integer(BGU_knowledge2 == 1) + # Deficit
+           as.integer(BGU_knowledge3 == 6) + # Term
+           as.integer(BGU_knowledge4 == 1) + # Spending
+           as.integer(BGU_knowledge5 == 1) + # Nomination
+           as.integer(BGU_knowledge6 == 3)) # Veto
+
+data_raw$knowledge <- as.numeric(data_raw$knowledge)
+
+table(data_raw$knowledge)
+
+### Realism
+
+# - Categories: 
+#   1 more than once a week
+#   2 Once a week
+#   3 Once or twice a month
+#   4 A few times a year
+#   5 Seldom
+#   6 Never
+
+table(data_raw$BGU_discussion1)
+
+data_raw$BGU_discussion1[data_raw$BGU_discussion1 == 9] <- NA
+data_raw$BGU_discussion2[data_raw$BGU_discussion2 == 9] <- NA
+data_raw$BGU_discussion3[data_raw$BGU_discussion3 == 9] <- NA
+data_raw$BGU_discussion4[data_raw$BGU_discussion4 == 9] <- NA
+data_raw$BGU_discussion5[data_raw$BGU_discussion5 == 9] <- NA
+data_raw$BGU_discussion6[data_raw$BGU_discussion6 == 9] <- NA
+data_raw$BGU_discussion7[data_raw$BGU_discussion7 == 9] <- NA
+data_raw$BGU_discussion8[data_raw$BGU_discussion8 == 9] <- NA
+data_raw$BGU_discussion9[data_raw$BGU_discussion9 == 9] <- NA
+
+
+# - Recode the variable so lower values indicate they never talk with a friend
+# - and higher values that they talk often
+
+data_raw %<>%
+  mutate(across(starts_with("BGU_discussion"), ~7 - ., .names = "inverted_{.col}")) %>% 
+  rowwise() %>%
+  mutate(pol_dis_friend = round(mean(c_across(starts_with("inverted_")), na.rm = TRUE), 2)) %>%
+  ungroup()
+
+table(data_raw$inverted_BGU_discussion1)
+
+table(data_raw$pol_dis_friend)
+
+### Social conformism
+
+# Please indicate the extent to which you agree or disagree with the following statement:
+
+#- BGU_conf1 It’s best for everyone if people try to fit in instead of acting in unusual ways.
+#- BGU_conf2 People should be encouraged to express themselves in unique and possibly unusual ways. 
+#- BGU_conf3 Obeying the rules and fitting in are signs of a strong and healthy society.
+#- BGU_conf4 People who continually emphasize the need for unity will only limit creativity and hurt our society.
+#- BGU_conf5 We should admire people who go their own way without worrying about what others think.
+#- BGU_conf6 People need to learn to fit in and get along with others.
+
+#1   Strongly agree
+#2   Agree
+#3   Neither agree nor disagree
+#4   Disagree
+#5   Strongly disagree
+#9   Don't know
+
+# - Given that some statements are phrased in a way that measure non-conformism 
+# - or individualism, we need to change that so all the statements range from 
+# - low levels of conformism to high levels of conformism.
+
+# - Questions that need to be reordered: BGU_conf2, BGU_conf4, and BGU_conf5
+
+# - Additionally, neither agree nor disagree and don't know will be mixed in the 
+# - same one. New categories will be:
+#1. Strongly disagree (low social conformism) - 4 and 5
+#2. Don't know/neither agree or disagree - 9 and 3
+#3. Agree/strongly agree (high social conformism) - 2 and 1
+
+data_raw %<>%
+  mutate(
+    BGU_conf1_rec = recode(BGU_conf1, 
+                           `1` = 3, `2` = 3,  #agree/strongly agree (high SC)
+                           `3` = 2, `9` = 2,  #don't know, neither
+                           `4` = 1, `5` = 1), #disagree/strongly disagree (low SC)
+    
+    BGU_conf2_rec = recode(BGU_conf2, 
+                           `1` = 1, `2` = 1,  #agree/strongly agree (low SC)
+                           `3` = 2, `9` = 2,  #don't know, neither
+                           `4` = 3, `5` = 3), #disagree/strongly disagree (high SC)
+    
+    BGU_conf3_rec = recode(BGU_conf3, 
+                           `1` = 3, `2` = 3,  #agree/strongly agree (high SC)
+                           `3` = 2, `9` = 2,  #don't know, neither
+                           `4` = 1, `5` = 1), #disagree/strongly disagree (low SC)
+    
+    BGU_conf4_rec = recode(BGU_conf4, 
+                           `1` = 1, `2` = 1,  #agree/strongly agree (low SC)
+                           `3` = 2, `9` = 2,  #don't know, neither
+                           `4` = 3, `5` = 3), #disagree/strongly disagree (high SC)
+    
+    BGU_conf5_rec = recode(BGU_conf5, 
+                           `1` = 1, `2` = 1,  #agree/strongly agree (low SC)
+                           `3` = 2, `9` = 2,  #don't know, neither
+                           `4` = 3, `5` = 3), #disagree/strongly disagree (high SC)
+    
+    BGU_conf6_rec = recode(BGU_conf6, 
+                           `1` = 3, `2` = 3,  #agree/strongly agree (high SC)
+                           `3` = 2, `9` = 2,  #don't know, neither
+                           `4` = 1, `5` = 1))  #disagree/strongly disagree (low SC)
+
+table(data_raw$BGU_conf6) 
+table(data_raw$BGU_conf6_rec) #validation
+
+### Test for Cronbach's alpha
+
+items_sci_full <- data_raw %>% 
+  select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf4_rec, BGU_conf5_rec, BGU_conf6_rec)
+
+print(alpha(items_sci_full, check.keys=TRUE))
+
+items_sci_reduced <- data_raw %>% 
+  select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf5_rec, BGU_conf6_rec)
+
+print(alpha(items_sci_reduced, check.keys=TRUE))
+
+
+####4 and 5 item  removed, reliability of the index is better without it
+
+data_raw %<>%
+  rowwise() %>%
+  mutate(SCI = mean(c_across(c(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf6_rec)), na.rm = TRUE)) %>%
+  ungroup()
+
+table(data_raw$SCI)
+
+# 5) Creation of long data format
 
 data_long <- data_raw %>%
   pivot_longer(
@@ -155,21 +296,7 @@ data_long$male <- ifelse(data_long$gender4 == 1, 1, 0)
 
 table(data_long$male)
 
-#4.  Political knowledge - counts the correct answers per item
-
-data_long %<>%
-  mutate(knowledge = as.integer(BGU_knowledge1 == 1) + # Constitution
-           as.integer(BGU_knowledge2 == 1) + # Deficit
-           as.integer(BGU_knowledge3 == 6) + # Term
-           as.integer(BGU_knowledge4 == 1) + # Spending
-           as.integer(BGU_knowledge5 == 1) + # Nomination
-           as.integer(BGU_knowledge6 == 3)) # Veto
-
-data_long$knowledge <- as.numeric(data_long$knowledge)
-
-table(data_long$knowledge)
-
-#5. Trump approval
+#4. Trump approval
 
 data_long$trump_approve <- ifelse(data_long$BGU_Trumpapproval %in% c(4, 5), 1,
                                   ifelse(data_long$BGU_Trumpapproval %in% c(3, 6), 2, 
@@ -177,31 +304,31 @@ data_long$trump_approve <- ifelse(data_long$BGU_Trumpapproval %in% c(4, 5), 1,
 
 table(data_long$trump_approve)
 
-#6. Ideology 5 point scale
+#4. Ideology 5 point scale
 
 table(data_long$ideo5)
 
 data_long$ideo5[data_long$ideo5 == 6] <- NA
 
-#7. 7 point Party ID
+#6. 7 point Party ID
 
 table(data_long$pid7)
 
 data_long$pid7[data_long$pid7 == 8] <- NA
 
-#8. Income
+#7. Income
 
 table(data_long$faminc_new)
 
 data_long$faminc_new[data_long$faminc_new == 97] <- NA
 
-#9. Political interest
+#8. Political interest
 
 table(data_long$newsint)
 
 data_long$newsint[data_long$newsint == 7] <- NA
 
-#10. Binary party associations
+#9. Binary party associations
 
 table(data_long$pid3)
 
@@ -211,7 +338,7 @@ data_long$independent <- ifelse(data_long$pid3 == 3, 1, 0)
 
 table(data_long$republican)
 
-#11. Three-category party id
+#10. Three-category party id
 
 data_long %<>%
   mutate(party_id = case_when(
@@ -219,93 +346,6 @@ data_long %<>%
     pid3 == 2 ~ "Republican",
     pid3 %in% 3:5 ~ "Independent/Other"))
 
-#12. Social conformism index
-
-### Social conformism
-
-# Please indicate the extent to which you agree or disagree with the following statement:
-
-#- BGU_conf1 It’s best for everyone if people try to fit in instead of acting in unusual ways.
-#- BGU_conf2 People should be encouraged to express themselves in unique and possibly unusual ways. 
-#- BGU_conf3 Obeying the rules and fitting in are signs of a strong and healthy society.
-#- BGU_conf4 People who continually emphasize the need for unity will only limit creativity and hurt our society.
-#- BGU_conf5 We should admire people who go their own way without worrying about what others think.
-#- BGU_conf6 People need to learn to fit in and get along with others.
-
-#1   Strongly agree
-#2   Agree
-#3   Neither agree nor disagree
-#4   Disagree
-#5   Strongly disagree
-#9   Don't know
-
-# - Given that some statements are phrased in a way that measure non-conformism 
-# - or individualism, we need to change that so all the statements range from 
-# - low levels of conformism to high levels of conformism.
-
-# - Questions that need to be reordered: BGU_conf2, BGU_conf4, and BGU_conf5
-
-# - Additionally, neither agree nor disagree and don't know will be mixed in the 
-# - same one. New categories will be:
-#1. Strongly disagree (low social conformism) - 4 and 5
-#2. Don't know/neither agree or disagree - 9 and 3
-#3. Agree/strongly agree (high social conformism) - 2 and 1
-
-data_long %<>%
-  mutate(
-    BGU_conf1_rec = recode(BGU_conf1, 
-                           `1` = 3, `2` = 3,  #agree/strongly agree (high SC)
-                           `3` = 2, `9` = 2,  #don't know, neither
-                           `4` = 1, `5` = 1), #disagree/strongly disagree (low SC)
-    
-    BGU_conf2_rec = recode(BGU_conf2, 
-                           `1` = 1, `2` = 1,  #agree/strongly agree (low SC)
-                           `3` = 2, `9` = 2,  #don't know, neither
-                           `4` = 3, `5` = 3), #disagree/strongly disagree (high SC)
-    
-    BGU_conf3_rec = recode(BGU_conf3, 
-                           `1` = 3, `2` = 3,  #agree/strongly agree (high SC)
-                           `3` = 2, `9` = 2,  #don't know, neither
-                           `4` = 1, `5` = 1), #disagree/strongly disagree (low SC)
-    
-    BGU_conf4_rec = recode(BGU_conf4, 
-                           `1` = 1, `2` = 1,  #agree/strongly agree (low SC)
-                           `3` = 2, `9` = 2,  #don't know, neither
-                           `4` = 3, `5` = 3), #disagree/strongly disagree (high SC)
-    
-    BGU_conf5_rec = recode(BGU_conf5, 
-                           `1` = 1, `2` = 1,  #agree/strongly agree (low SC)
-                           `3` = 2, `9` = 2,  #don't know, neither
-                           `4` = 3, `5` = 3), #disagree/strongly disagree (high SC)
-    
-    BGU_conf6_rec = recode(BGU_conf6, 
-                           `1` = 3, `2` = 3,  #agree/strongly agree (high SC)
-                           `3` = 2, `9` = 2,  #don't know, neither
-                           `4` = 1, `5` = 1))  #disagree/strongly disagree (low SC)
-
-table(data_long$BGU_conf6_rec) #validation
-
-### Test for Cronbach's alpha
-
-items_sci_full <- data_long %>% 
-  select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf4_rec, BGU_conf5_rec, BGU_conf6_rec)
-
-print(alpha(items_sci_full, check.keys=TRUE))
-
-items_sci_reduced <- data_long %>% 
-  select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf5_rec, BGU_conf6_rec)
-
-print(alpha(items_sci_reduced, check.keys=TRUE))
-
-
-####4 and 5 item  removed, reliability of the index is better without it
-
-data_long %<>%
-  rowwise() %>%
-  mutate(SCI = mean(c_across(c(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf6_rec)), na.rm = TRUE)) %>%
-  ungroup()
-
-table(data_long$SCI)
 
 # Save in both RDS and csv formats
 

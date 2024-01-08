@@ -468,14 +468,68 @@ all_models_tidy <- all_models_tidy %>%
     Bonferroni = p.adjust(p.value, method = "bonferroni"),
     p.value = round(p.value, 3),         
     Bonferroni = round(Bonferroni, 3),   
-    estimate = round(estimate, 3)        
-  ) %>%
+    estimate = round(estimate, 3)) %>%
   ungroup() %>%
   select(model, term, estimate, p.value, Bonferroni)  
 
 
 kable(all_models_tidy, "latex", booktabs = TRUE, 
       col.names = c("Model", "Term", "Estimate", "P-Value", "Bonferroni")) 
+
+### Table D.2. - Realism check
+
+# - To check if the influence (or lack of it) of the close friend treatment
+# - relates to how much the respondent talks about given political issues
+
+models_realism_low <- list(
+  "Wages" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+               data = data_long[data_long$policy_issue == 1 & data_long$BGU_discussion1 == 1, ]),
+  "Taxes" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+               data = data_long[data_long$policy_issue == 2 & data_long$BGU_discussion2 == 1, ]),
+  "Abortion" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+                  data = data_long[data_long$policy_issue == 3 & data_long$BGU_discussion3 == 1, ]),
+  "Immigration" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+                     data = data_long[data_long$policy_issue == 4 & data_long$BGU_discussion4 == 1, ]),
+  "Guns" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+              data = data_long[data_long$policy_issue == 5 & data_long$BGU_discussion5 == 1, ]),
+  "Health Care" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+                     data = data_long[data_long$policy_issue == 6 & data_long$BGU_discussion6 == 1, ]),
+  "Background Checks" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+                           data = data_long[data_long$policy_issue == 7 & data_long$BGU_discussion7 == 1, ]),
+  "Climate Change" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+                        data = data_long[data_long$policy_issue == 8 & data_long$BGU_discussion8 == 1, ]),
+  "Planned Parenthood" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+                            data = data_long[data_long$policy_issue == 9 & data_long$BGU_discussion9 == 1, ]))
+
+msummary(models_realism_low,
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         title = "ATE Policy Positions - Does Not Discuss with Friends Subsample",
+         output = 'markdown')
+
+models_realism_med_high <- list(
+  "Wages" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+               data = data_long[data_long$policy_issue == 1 & data_long$BGU_discussion1 >= 2, ]),
+  "Taxes" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+               data = data_long[data_long$policy_issue == 2 & data_long$BGU_discussion2 >= 2, ]),
+  "Abortion" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+                  data = data_long[data_long$policy_issue == 3 & data_long$BGU_discussion3 >= 2, ]),
+  "Immigration" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+                     data = data_long[data_long$policy_issue == 4 & data_long$BGU_discussion4 >= 2, ]),
+  "Guns" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+              data = data_long[data_long$policy_issue == 5 & data_long$BGU_discussion5 >= 2, ]),
+  "Health Care" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+                     data = data_long[data_long$policy_issue == 6 & data_long$BGU_discussion6 >= 2, ]),
+  "Background Checks" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+                           data = data_long[data_long$policy_issue == 7 & data_long$BGU_discussion7 >= 2, ]),
+  "Climate Change" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+                        data = data_long[data_long$policy_issue == 8 & data_long$BGU_discussion8 >= 2, ]),
+  "Planned Parenthood" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+                            data = data_long[data_long$policy_issue == 9 & data_long$BGU_discussion9 >= 2, ]))
+
+msummary(models_realism_med_high,
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         title = "ATE Policy Positions - Discuss with Friends Subsample",
+         output = 'markdown')
 
 ### Figure 1 - Distribution political knowledge
 
@@ -493,3 +547,52 @@ pol_knowledge_plot <- data_long[data_long$policy_issue == 1, ] %>%
 pol_knowledge_plot
 
 ggsave("outputs/figures/pol_knowledge_hist.png", plot = pol_knowledge_plot, dpi = 300, width = 8, height = 6)
+
+### Figure 2 - Distribution realism
+
+discussion_counts <- data_long %>%
+  pivot_longer(
+    cols = starts_with("inverted_BGU_discussion"),
+    names_to = "policy_variable", # This will hold the names of your discussion variables
+    values_to = "discussion_level") %>%
+  filter(!is.na(discussion_level)) %>%
+  # We need a new variable to distinguish between different policy issues if it's not already present in the data.
+  mutate(policy_issue = str_extract(policy_variable, "\\d+")) %>%
+  group_by(policy_issue, discussion_level) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(policy_issue) %>%
+  mutate(percentage = count / sum(count)) %>%
+  ungroup()
+
+# Rename the levels with the actual policy names
+policy_issue_names <- c("Minimum Wage", "Taxes", "Abortion", "Immigration", 
+                        "Guns", "Health Care", "Background Checks", "Climate Change", 
+                        "Planned Parenthood")
+
+# reorder the levels
+levels(discussion_counts$policy_issue) <- rev(policy_issue_names)
+
+discussion_counts$policy_issue <- factor(discussion_counts$policy_issue, 
+                                         levels = rev(unique(discussion_counts$policy_issue)))
+
+discussion_counts$discussion_level <- factor(discussion_counts$discussion_level, levels = c(6, 5, 4, 3, 2, 1))
+
+realism_plot <- ggplot(discussion_counts, aes(x = policy_issue, y = percentage, fill = discussion_level)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_fill_grey(start = 0.2, end = 0.8) +  # Light to dark for levels 1 to 6
+  labs(x = "Policy Issue", y = "Percentage", fill = "Discussion Frequency") +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent_format(scale = 100)) +
+  theme(legend.position = "none") +
+  coord_flip() +
+  annotate("text", x = "Minimum Wage", y = 0.95, label = "> Once a\nWeek", size = 3, hjust = 0.5, vjust = 0.5, color = "white") +
+  annotate("text", x = "Minimum Wage", y = 0.865, label = "Once a\nWeek", size = 3, hjust = 0.5, vjust = 0.5, color = "white") +
+  annotate("text", x = "Minimum Wage", y = 0.75, label = "Once/Twice\na Month", size = 3, hjust = 0.5, vjust = 0.5, color = "black") +
+  annotate("text", x = "Minimum Wage", y = 0.54, label = "Few Times\na Year", size = 3, hjust = 0.5, vjust = 0.5, color = "black") +
+  annotate("text", x = "Minimum Wage", y = 0.32, label = "Seldom", size = 3, hjust = 0.5, vjust = 0.5, color = "black") +
+  annotate("text", x = "Minimum Wage", y = 0.11, label = "Never", size = 3, hjust = 0.5, vjust = 0.5, color = "black")
+
+realism_plot
+
+
+ggsave("outputs/figures/realism_hist.png", plot = realism_plot, dpi = 600, width = 8, height = 6)
