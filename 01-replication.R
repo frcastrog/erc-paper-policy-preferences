@@ -14,6 +14,9 @@ options(scipen = 999)
 # - This script requires the data produced by `00-data-prep`
 # - Alternative, one can load the data available in `data/derived-data/`
 
+readRDS("data/derived-data/data_long.rds")
+
+
 # 2) Paper replication
 
 ### Figure 1 - Average treatment effect of policy cues 
@@ -22,7 +25,7 @@ options(scipen = 999)
 
 model1 <- lm(policy_opinion ~ male + pid3 + treatment_group, data = data_long)
 
-ate_m1 <- tidy(model1) %>%
+ate_m1 <- tidy(model1, conf.int = TRUE) %>%
   filter(term %in% c("treatment_groupTL", "treatment_groupTC", 
                      "treatment_groupCFL", "treatment_groupCFC")) %>%
   mutate(term = case_when(
@@ -36,13 +39,6 @@ ate_m1$term <- factor(ate_m1$term, levels = c("Liberal Trump",
                                               "Conservative Trump",
                                               "Liberal Close Friend",
                                               "Conservative Close Friend"))
-
-
-# Calculate CI
-ate_m1 <- ate_m1 %>%
-  mutate(conf.low = estimate - 1.96 * std.error, 
-         conf.high = estimate + 1.96 * std.error)
-
 
 # Plot
 ate_plot <- ggplot(ate_m1, aes(x = term, y = estimate)) +
@@ -74,9 +70,7 @@ ggsave("outputs/figures/ate_plot.png", plot = ate_plot, dpi = 300, width = 8, he
 model2 <- lm(policy_opinion ~ male + party_id + treatment_group*party_id, data = data_long)
 
 # CIs
-tidy_m2 <- tidy(model2) %>%
-  mutate(conf.low = estimate - 1.96 * std.error,
-         conf.high = estimate + 1.96 * std.error)
+tidy_m2 <- tidy(model2, conf.int = TRUE) 
 
 term_labels <- c(
   "treatment_groupTL" = "Democrat:Liberal Trump",
@@ -153,7 +147,7 @@ ate_plot2 <- ggplot(ate_m2, aes(x = treatment, y = estimate, color = party_id)) 
                 position = position_dodge(width = 0.7), width = 0.05) +
   geom_point(position = position_dodge(width = 0.7), size = 3) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
-  labs(x = "Treatments", y = "Average Treatment Effect", color = "Party Identification") +
+  labs(x = "Treatments", y = "Interaction Coefficient", color = "Party Identification") +
   scale_y_continuous(limits = c(-0.5, 0.5)) +
   theme_minimal() +
   theme(legend.position = "bottom",
@@ -173,7 +167,7 @@ ate_plot2 <- ggplot(ate_m2, aes(x = treatment, y = estimate, color = party_id)) 
 
 ate_plot2
 
-ggsave("outputs/figures/ate_plot_partyid.png", plot = ate_plot2, dpi = 300, width = 8, height = 6)
+ggsave("outputs/figures/inter_plot_partyid.png", plot = ate_plot2, dpi = 300, width = 8, height = 6)
 
 ### Figure 3 - Interaction with political knowledge
 
@@ -205,7 +199,7 @@ model3_plot <- ggplot(model3_table, aes(x = x, y = predicted, group = treatment)
   geom_line(color = "black", linewidth = 1) +  
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
   facet_wrap(~treatment, scales = "free", ncol = 2) +
-  labs(y = "Predicted ATE", x = "Level of Political Knowledge") +
+  labs(y = "Predicted Values", x = "Level of Political Knowledge") +
   theme_minimal() +
   theme(legend.position = "none",
         strip.background = element_blank(),
