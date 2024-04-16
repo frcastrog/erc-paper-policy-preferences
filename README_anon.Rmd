@@ -1,0 +1,35 @@
+---
+output: github_document
+bibliography: references.bib
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "README-"
+)
+# Please put your title here to include it in the file below.
+Title <- "External Cues and Policy Preferences: Rethinking the Drivers of Policy Positions"
+Year <- "2024"
+```
+
+# `r Title`
+
+------------------------------------------------------------------------
+
+## Abstract
+
+This research note investigates how political figures and social influences shape individual policy preferences. Specifically, it revisits the model proposed by @barber2018 and @barber2023 regarding Donald Trump's impact on people's liberal or conservative stances toward a set of policy issues in surveys fielded during Trump's presidency. We explore whether Trump's influence persists post-presidency as well as whether an additional significant factor in the contemporary social media age may also affect policy views, namely the opinion of a close friend. Results indicate that Trump and a close friend's cues do not affect policy support and have a limited effect when examining specific policies, such as taxes, immigration, and background checks. These findings contribute to existing research by demonstrating the waning influence of a prior President no longer in office, as well as the negligible effect of the alternative influence of a hypothetical close friend as measured in our survey experiment. We conclude by outlining additional ways in which the potential close friend effect could be investigated in future research.
+
+------------------------------------------------------------------------
+
+## How to download and replicate
+
+The original dataset is available in the file titled `data.sav`  This is the raw data of Cooperative Election Study (CES) for the period November and December 2021.
+
+The `script `  contains the code to make the necessary modifications to the original data, which includes recoding, flag creation, and cleanup. It also contains the code to replicate the figures and tables of both the manuscript and the supplementary information.
+
+## References

@@ -1,6 +1,6 @@
 #-------------------------------Data Preparation-------------------------------#
 #-Author: Francisca Castro ----------------------- Created: September 18, 2023-#
-#-R Version: 4.3.1 ---------------------------------- Revised: January 4, 2024-#
+#-R Version: 4.3.1 ----------------------------------- Revised: March 26, 2024-#
 
 # 1) Load packages
 
@@ -298,13 +298,13 @@ table(data_long$male)
 
 #4. Trump approval
 
-data_long$trump_approve <- ifelse(data_long$BGU_Trumpapproval %in% c(4, 5), 1,
-                                  ifelse(data_long$BGU_Trumpapproval %in% c(3, 6), 2, 
-                                         ifelse(data_long$BGU_Trumpapproval %in% c(1, 2), 3, NA)))
+data_long$trump_approve <- ifelse(data_long$BGU_Trumpapproval %in% c(4, 5), 1, #disapprove/strongly disapprove
+                                  ifelse(data_long$BGU_Trumpapproval %in% c(3, 6), 2,  #NAND, DK
+                                         ifelse(data_long$BGU_Trumpapproval %in% c(1, 2), 3, NA))) # approves/strongly approves
 
 table(data_long$trump_approve)
 
-#4. Ideology 5 point scale
+ #4. Ideology 5 point scale
 
 table(data_long$ideo5)
 

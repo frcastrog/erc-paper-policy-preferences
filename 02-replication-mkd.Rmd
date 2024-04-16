@@ -1,31 +1,32 @@
-#------------------------------Replication Script------------------------------#
-#-------------------------------------------------- Created: December 27, 2023-#
-#-R Version: 4.3.1 ----------------------------------- Revised: March 26, 2024-#
+---
+title: "External Cues and Policy Preferences: Rethinking the Drivers of Policy Positions"
+#author: "Francisca Castro, Jennifer Oser, Fernando Feitosa and Nir Grinberg"
+output: html_document
+date: "Date: `r format(Sys.time(), '%F')`"
+---
 
-# 1) Load packages
-
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
 pacman::p_load(haven, dplyr, tidyverse, magrittr, forcats, ggplot2, psych, xtable,
-               broom, ggeffects, gridExtra, knitr, modelsummary, purrr, kableExtra)
+               broom, ggeffects, gridExtra, knitr, modelsummary)
 
 options(scipen = 999)
+```
 
-# 1.1) Data
+# Open data
 
-# - This script requires the data produced by `00-data-prep`
-# - Alternative, one can load the data available in `data/derived-data/`
+```{r load-data, message=FALSE, warning=FALSE}
+data_long <- readRDS("data/derived-data/data_long.rds")
+```
 
-readRDS("data/derived-data/data_long.rds")
-
-
-# 2) Paper replication
+# Paper replication
 
 ### Figure 1 - Average treatment effect of policy cues 
-# - Replication of Figure 1 ATE Across Issues on Barber & Pope (2019) 
-# - but without separating by party
+Replication of Figure 1 ATE Across Issues on Barber & Pope (2019) but without separating by party
 
+```{r}
 model1 <- lm(policy_opinion ~ male + pid3 + treatment_group, data = data_long)
 
-ate_m1 <- tidy(model1, conf.int = TRUE) %>%
+ate_m1 <- tidy(model1) %>%
   filter(term %in% c("treatment_groupTL", "treatment_groupTC", 
                      "treatment_groupCFL", "treatment_groupCFC")) %>%
   mutate(term = case_when(
@@ -39,6 +40,13 @@ ate_m1$term <- factor(ate_m1$term, levels = c("Liberal Trump",
                                               "Conservative Trump",
                                               "Liberal Close Friend",
                                               "Conservative Close Friend"))
+
+
+# Calculate CI
+ate_m1 <- ate_m1 %>%
+  mutate(conf.low = estimate - 1.96 * std.error, 
+         conf.high = estimate + 1.96 * std.error)
+
 
 # Plot
 ate_plot <- ggplot(ate_m1, aes(x = term, y = estimate)) +
@@ -61,16 +69,17 @@ ate_plot <- ggplot(ate_m1, aes(x = term, y = estimate)) +
         axis.title.x = element_text(margin = margin(t = 20, b = 10)))
 
 ate_plot
-
-ggsave("outputs/figures/ate_plot.png", plot = ate_plot, dpi = 300, width = 8, height = 6)
-
+```
 
 ### Figure 2 - Interaction with Party ID 
 
+```{r}
 model2 <- lm(policy_opinion ~ male + party_id + treatment_group*party_id, data = data_long)
 
 # CIs
-tidy_m2 <- tidy(model2, conf.int = TRUE) 
+tidy_m2 <- tidy(model2) %>%
+  mutate(conf.low = estimate - 1.96 * std.error,
+         conf.high = estimate + 1.96 * std.error)
 
 term_labels <- c(
   "treatment_groupTL" = "Democrat:Liberal Trump",
@@ -169,114 +178,11 @@ ate_plot2 <- ggplot(ate_m2, aes(x = treatment, y = estimate, color = party_id)) 
                               "Conservative\nClose Friend"))
 
 ate_plot2
-
-ggsave("outputs/figures/inter_plot_partyid.png", plot = ate_plot2, dpi = 600, width = 7, height = 6)
-
-
-### Figure 2b - Interaction with Trump approval
-#  Levels for trump approval
-data_long$trump_approve <- factor(data_long$trump_approve, 
-                                  levels = c(1, 2, 3), labels = c("Disapprove", "Neither", "Approve"))
-
-# Factor interaction
-model2_ta <- lm(policy_opinion ~ male + trump_approve + treatment_group * trump_approve, data = data_long)
-
-tidy_m2_ta <- tidy(model2_ta, conf.int = TRUE)
-
-# Labels for trump_approve interaction terms
-term_labels_ta <- c(
-  "treatment_groupTL" = "Disapprove:Liberal Trump",
-  "treatment_groupTC" = "Disapprove:Conservative Trump",
-  "treatment_groupCFL" = "Disapprove:Liberal Close Friend",
-  "treatment_groupCFC" = "Disapprove:Conservative Close Friend",
-  "trump_approveNeither:treatment_groupTL" = "Neither:Liberal Trump",
-  "trump_approveApprove:treatment_groupTL" = "Approve:Liberal Trump",
-  "trump_approveNeither:treatment_groupTC" = "Neither:Conservative Trump",
-  "trump_approveApprove:treatment_groupTC" = "Approve:Conservative Trump",
-  "trump_approveNeither:treatment_groupCFL" = "Neither:Liberal Close Friend",
-  "trump_approveApprove:treatment_groupCFL" = "Approve:Liberal Close Friend",
-  "trump_approveNeither:treatment_groupCFC" = "Neither:Conservative Close Friend",
-  "trump_approveApprove:treatment_groupCFC" = "Approve:Conservative Close Friend")
-
-
-# Relabel terms for trump_approve
-ate_m2_ta <- tidy_m2_ta %>%
-  mutate(term = if_else(term %in% names(term_labels_ta), term_labels_ta[term], term)) %>%
-  filter(term != "(Intercept)")  # Exclude intercept 
-
-# Extract and handle intercept (effect for Disapprove as baseline)
-intercept_m2_ta <- filter(tidy_m2_ta, term == "(Intercept)")
-
-ate_m2_ta %<>%
-  add_row(term = "Disapprove:Baseline",
-          estimate = intercept_m2_ta$estimate,
-          std.error = intercept_m2_ta$std.error,
-          conf.low = intercept_m2_ta$estimate - 1.96 * intercept_m2_ta$std.error,
-          conf.high = intercept_m2_ta$estimate + 1.96 * intercept_m2_ta$std.error)
-
-# Add column for treatment and trump_approve to use in the plot
-ate_m2_ta %<>%
-  mutate(
-    treatment = case_when(
-      str_detect(term, "Liberal Trump") ~ "Liberal Trump",
-      str_detect(term, "Conservative Trump") ~ "Conservative Trump",
-      str_detect(term, "Liberal Close Friend") ~ "Liberal Close Friend",
-      str_detect(term, "Conservative Close Friend") ~ "Conservative Close Friend",
-      TRUE ~ as.character(term)  # To handle the Disapprove:Baseline
-    ),
-    trump_approve = case_when(
-      str_detect(term, "^Disapprove:") ~ "Disapprove",
-      str_detect(term, "^Neither:") ~ "Neither",
-      str_detect(term, "^Approve:") ~ "Approve")) %>%
-  filter(!is.na(trump_approve)) 
-
-
-ate_m2_ta$treatment <- factor(ate_m2_ta$treatment, levels = c(
-  "Liberal Trump", 
-  "Conservative Trump", 
-  "Liberal Close Friend", 
-  "Conservative Close Friend"))
-
-ate_m2_ta %<>%
-  filter(!is.na(treatment))
-
-# Reorder levels of trump_approve
-ate_m2_ta$trump_approve <- factor(ate_m2_ta$trump_approve, levels = c("Disapprove", "Neither", "Approve"))
-
-
-# Plot
-ate_plot2_ta <- ggplot(ate_m2_ta, aes(x = treatment, y = estimate, color = trump_approve)) +
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), position = position_dodge(width = 0.7), width = 0.15) +
-  geom_point(position = position_dodge(width = 0.7), size = 3) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
-  labs(x = "Treatments", y = "Interaction Coefficient", color = "Trump Approval") +
-  scale_color_manual(values = c("Disapprove" = "black", 
-                                "Neither" = "#787878", 
-                                "Approve" = "gray")) +
-  theme_minimal() +
-  theme(
-    axis.title.x = element_text(size = 14, margin = margin(t = 20, b = 10)),
-    axis.title.y = element_text(size = 14),
-    axis.text.y = element_text(size = 12),
-    legend.position = "bottom",
-    legend.title = element_text(size = 12),  
-    legend.text = element_text(size = 12),   
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.background = element_blank()
-  ) +
-  scale_x_discrete(labels = c("Liberal\nTrump", 
-                              "Conservative\nTrump", 
-                              "Liberal\nClose Friend", 
-                              "Conservative\nClose Friend")) +
-  scale_y_continuous(limits = c(-0.6, 0.6))
-
-ate_plot2_ta
-
-ggsave("outputs/figures/inter_plot_trump_app.png", plot = ate_plot2_ta, dpi = 600, width = 7, height = 6)
+```
 
 ### Figure 3 - Interaction with political knowledge
 
+```{r}
 model3 <- lm(policy_opinion ~ male + pid3 + factor(knowledge) + 
                treatment_group*factor(knowledge), data = data_long)
 
@@ -306,29 +212,29 @@ model3_plot <- ggplot(model3_table, aes(x = x, y = predicted, group = treatment)
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
   facet_wrap(~treatment, scales = "free", ncol = 2) +
   labs(y = "Predicted Values", x = "Level of Political Knowledge") +
-  theme_minimal(base_size = 14) +  
+  theme_minimal(base_size = 14) +
   theme(legend.position = "none",
         strip.background = element_blank(),
-        strip.text.x = element_text(size = 14),
+        strip.text.x = element_text(size = 14), 
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_blank(),
         panel.border = element_rect(linetype = "solid", 
                                     fill = NA, color = "black", linewidth = 0.5),
-        axis.title.x = element_text(size = 14),  
-        axis.title.y = element_text(size = 14),  
-        axis.text.x = element_text(size = 12),   
-        axis.text.y = element_text(size = 12)) +  
+        axis.title.x = element_text(size = 14), 
+        axis.title.y = element_text(size = 14), 
+        axis.text.x = element_text(size = 12),  
+        axis.text.y = element_text(size = 12)) + 
   coord_cartesian(ylim = c(-0.2, 0.65)) +
   scale_x_continuous(breaks = 0:6)
 
 
 model3_plot
-
-ggsave("outputs/figures/pol_knowledge.png", plot = model3_plot, dpi = 600, width = 8, height = 6)
+```
 
 ### Figure 4 - Interaction with social conformism
 
+```{r, results = 'hide', warning=FALSE}
 model_4 <- lm(policy_opinion ~ male + pid3 + treatment_group*SCI, data = data_long)
 
 m4_TL <- ggpredict(model_4, terms = c("SCI", "treatment_group[TL]"))
@@ -406,11 +312,11 @@ m4_plot_cf <- ggplot(m4_cf_effects, aes(x = x, y = predicted, group = treatment)
 m4_plot_cf
 
 m4_plot_final <- grid.arrange(m4_plot_trump, m4_plot_cf, nrow = 2) 
+```
 
-ggsave("outputs/figures/social_conf.png", plot = m4_plot_final, dpi = 600, width = 7, height = 6)
+# Supplementary Information Replication
 
-# 3) Supplementary Information Replication
-
+```{r}
 ### Table B1.1 - Mean Demographic Values by Treatment Group
 
 data_balance <- data_long[data_long$policy_issue == "1",]
@@ -480,12 +386,12 @@ descriptive_stats_long <- descriptive_stats %>%
          "Conservative Close Friend" = `CFC`) %>%
   mutate(across(-Variable, ~round(., 2)))
 
-
-latex_table <- kable(descriptive_stats_long, format = "latex", booktabs = TRUE) 
 descriptive_stats_long
+```
 
 ### Table B2.1 - Test for Cronbach's alpha
 
+```{r}
 items_sci_full <- data_long %>% 
   select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf4_rec, 
          BGU_conf5_rec, BGU_conf6_rec)
@@ -494,20 +400,23 @@ ca_sci <- alpha(items_sci_full, check.keys=TRUE)
 print(ca_sci)
 
 item_stats <- as.data.frame(ca_sci$item.stats)
-latex_table_items <- xtable(item_stats)
-print(latex_table_items, type = 'latex') 
+item_stats
+```
 
 ### Table C1.1 Average Treatment Effect of Policy Cue
 
+```{r}
 msummary(model1,
          title = "Average Treatment Effect of Policy Cue",
          stars = c('*' = .1, '**' = .05, '***' = .01),
          estimate = "{estimate}{stars} ({std.error})",
          statistic = NULL,
          output = 'markdown')
+```
 
 ### Table C1.2 - Treatment effect per policy issues
 
+```{r}
 models_pol_issues <- list(
   "Wages" = lm(policy_opinion ~ male + pid3 + treatment_group, 
                data = data_long[data_long$policy_issue == 1, ]),
@@ -531,18 +440,35 @@ models_pol_issues <- list(
 msummary(models_pol_issues,
          stars = c('*' = .1, '**' = .05, '***' = .01),
          output = 'markdown')
+```
+
 
 ### Table C3.1 With Party ID
 
+```{r}
 msummary(model2,
          title = "Interaction with Party Identification",
          stars = c('*' = .1, '**' = .05, '***' = .01),
          estimate = "{estimate}{stars} ({std.error})",
          statistic = NULL,
          output = 'markdown')
+```
+
+### Table C3.2 With Trump approval
+
+```{r}
+msummary(model2_ta,
+         title = "Interaction with Trump Approval",
+         stars = c('*' = .1, '**' = .05, '***' = .01),
+         estimate = "{estimate}{stars} ({std.error})",
+         statistic = NULL,
+         output = 'markdown')
+```
+
 
 ### Table C3.2 With Political Knowledge
 
+```{r}
 msummary(model3,
          title = "Interaction with Political Knowledge",
          stars = c('*' = .1, '**' = .05, '***' = .01),
@@ -550,50 +476,26 @@ msummary(model3,
          statistic = NULL,
          output = 'markdown')
 
+```
+
+
 ### Table C3.3 With Social Conformism
 
+```{r}
 msummary(model_4,
          title = "Interaction with Social Conformism Index",
          stars = c('*' = .1, '**' = .05, '***' = .01),
          estimate = "{estimate}{stars} ({std.error})",
          statistic = NULL,
          output = 'markdown')
+```
 
-### Table D1.1 - Bonferroni corrections
+### Table D1.1 -  Realism check
 
-# - Extract Model Summaries
+To check if the influence (or lack of it) of the close friend treatment relates to how much the respondent talks about given political issues
 
-model1_tidy <- tidy(model1)
-model2_tidy <- tidy(model2)
-model3_tidy <- tidy(model3b)
-model4_tidy <- tidy(model_4)
-
-# - Combine models and apply bonferroni correction
-
-all_models_tidy <- bind_rows(mutate(model1_tidy, model = "Model 1"),
-                             mutate(model2_tidy, model = "Model 2"),
-                             mutate(model3_tidy, model = "Model 3"),
-                             mutate(model4_tidy, model = "Model 4"))
-
-all_models_tidy <- all_models_tidy %>%
-  group_by(term) %>%
-  mutate(
-    Bonferroni = p.adjust(p.value, method = "bonferroni"),
-    p.value = round(p.value, 3),         
-    Bonferroni = round(Bonferroni, 3),   
-    estimate = round(estimate, 3)) %>%
-  ungroup() %>%
-  select(model, term, estimate, p.value, Bonferroni)  
-
-
-kable(all_models_tidy, "latex", booktabs = TRUE, 
-      col.names = c("Model", "Term", "Estimate", "P-Value", "Bonferroni")) 
-
-### Table D.2. - Realism check
-
-# - To check if the influence (or lack of it) of the close friend treatment
-# - relates to how much the respondent talks about given political issues
-
+For individuals who never talk about that policy issue with their close friend.
+```{r}
 models_realism_low <- list(
   "Wages" = lm(policy_opinion ~ male + pid3 + treatment_group, 
                data = data_long[data_long$policy_issue == 1 & data_long$BGU_discussion1 == 1, ]),
@@ -618,7 +520,10 @@ msummary(models_realism_low,
          stars = c('*' = .1, '**' = .05, '***' = .01),
          title = "ATE Policy Positions - Does Not Discuss with Friends Subsample",
          output = 'markdown')
+```
 
+For individuals who seldom talk and beyond about that policy issue with their close friend
+```{r}
 models_realism_med_high <- list(
   "Wages" = lm(policy_opinion ~ male + pid3 + treatment_group, 
                data = data_long[data_long$policy_issue == 1 & data_long$BGU_discussion1 >= 2, ]),
@@ -643,9 +548,12 @@ msummary(models_realism_med_high,
          stars = c('*' = .1, '**' = .05, '***' = .01),
          title = "ATE Policy Positions - Discuss with Friends Subsample",
          output = 'markdown')
+```
+
 
 ### Figure 1 - Distribution political knowledge
 
+```{r}
 pol_knowledge_plot <- data_long[data_long$policy_issue == 1, ] %>%
   count(knowledge) %>%
   ggplot(aes(x = knowledge, y = n)) +
@@ -658,11 +566,11 @@ pol_knowledge_plot <- data_long[data_long$policy_issue == 1, ] %>%
   theme_minimal()
 
 pol_knowledge_plot
-
-ggsave("outputs/figures/pol_knowledge_hist.png", plot = pol_knowledge_plot, dpi = 300, width = 8, height = 6)
+```
 
 ### Figure 2 - Distribution realism
 
+```{r}
 discussion_counts <- data_long %>%
   pivot_longer(
     cols = starts_with("inverted_BGU_discussion"),
@@ -683,10 +591,10 @@ policy_issue_names <- c("Minimum Wage", "Taxes", "Abortion", "Immigration",
                         "Planned Parenthood")
 
 # reorder the levels
-levels(discussion_counts$policy_issue) <- rev(policy_issue_names)
-
 discussion_counts$policy_issue <- factor(discussion_counts$policy_issue, 
                                          levels = rev(unique(discussion_counts$policy_issue)))
+
+levels(discussion_counts$policy_issue) <- rev(policy_issue_names)
 
 discussion_counts$discussion_level <- factor(discussion_counts$discussion_level, levels = c(6, 5, 4, 3, 2, 1))
 
@@ -698,14 +606,20 @@ realism_plot <- ggplot(discussion_counts, aes(x = policy_issue, y = percentage, 
   scale_y_continuous(labels = scales::percent_format(scale = 100)) +
   theme(legend.position = "none") +
   coord_flip() +
-  annotate("text", x = "Minimum Wage", y = 0.95, label = "> Once a\nWeek", size = 3, hjust = 0.5, vjust = 0.5, color = "white") +
-  annotate("text", x = "Minimum Wage", y = 0.865, label = "Once a\nWeek", size = 3, hjust = 0.5, vjust = 0.5, color = "white") +
-  annotate("text", x = "Minimum Wage", y = 0.75, label = "Once/Twice\na Month", size = 3, hjust = 0.5, vjust = 0.5, color = "black") +
-  annotate("text", x = "Minimum Wage", y = 0.54, label = "Few Times\na Year", size = 3, hjust = 0.5, vjust = 0.5, color = "black") +
-  annotate("text", x = "Minimum Wage", y = 0.32, label = "Seldom", size = 3, hjust = 0.5, vjust = 0.5, color = "black") +
-  annotate("text", x = "Minimum Wage", y = 0.11, label = "Never", size = 3, hjust = 0.5, vjust = 0.5, color = "black")
+  annotate("text", x = "Minimum Wage", y = 0.95, label = "> Once a\nWeek", size = 3, 
+           hjust = 0.5, vjust = 0.5, color = "white") +
+  annotate("text", x = "Minimum Wage", y = 0.865, label = "Once a\nWeek", size = 3, 
+           hjust = 0.5, vjust = 0.5, color = "white") +
+  annotate("text", x = "Minimum Wage", y = 0.75, label = "Once/Twice\na Month", size = 3, 
+           hjust = 0.5, vjust = 0.5, color = "black") +
+  annotate("text", x = "Minimum Wage", y = 0.54, label = "Few Times\na Year", size = 3, 
+           hjust = 0.5, vjust = 0.5, color = "black") +
+  annotate("text", x = "Minimum Wage", y = 0.32, label = "Seldom", size = 3, 
+           hjust = 0.5, vjust = 0.5, color = "black") +
+  annotate("text", x = "Minimum Wage", y = 0.11, label = "Never", size = 3, 
+           hjust = 0.5, vjust = 0.5, color = "black")
 
 realism_plot
+```
 
 
-ggsave("outputs/figures/realism_hist.png", plot = realism_plot, dpi = 600, width = 8, height = 6)
