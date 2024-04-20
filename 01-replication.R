@@ -487,7 +487,7 @@ descriptive_stats_long
 ### Table B2.1 - Test for Cronbach's alpha
 
 items_sci_full <- data_long %>% 
-  select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf4_rec, 
+  dplyr::select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf4_rec, 
          BGU_conf5_rec, BGU_conf6_rec)
 
 ca_sci <- alpha(items_sci_full, check.keys=TRUE)

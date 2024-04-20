@@ -14,7 +14,7 @@ data_raw <- read_sav("data/data-raw/CCES21_BGU_OUTPUT.sav")
 
 ### Keep only necessary variables
 data_raw %<>%
-  select(caseid, teamweight, birthyr, educ, race, CC21_330a, pid3, pid7, gender4, 
+  dplyr::select(caseid, teamweight, birthyr, educ, race, CC21_330a, pid3, pid7, gender4, 
          BGU_Trumpapproval, CC21_315a, BGU_group,
          BGU_control1, BGU_control2, BGU_control3, BGU_control4, BGU_control5,
          BGU_control6, BGU_control7, BGU_control8, BGU_control9, BGU_Trumplib1,
@@ -184,12 +184,12 @@ table(data_raw$BGU_conf6_rec) #validation
 ### Test for Cronbach's alpha
 
 items_sci_full <- data_raw %>% 
-  select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf4_rec, BGU_conf5_rec, BGU_conf6_rec)
+  dplyr::select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf4_rec, BGU_conf5_rec, BGU_conf6_rec)
 
 print(alpha(items_sci_full, check.keys=TRUE))
 
 items_sci_reduced <- data_raw %>% 
-  select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf5_rec, BGU_conf6_rec)
+  dplyr::select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf5_rec, BGU_conf6_rec)
 
 print(alpha(items_sci_reduced, check.keys=TRUE))
 
@@ -301,8 +301,16 @@ table(data_long$male)
 data_long$trump_approve <- ifelse(data_long$BGU_Trumpapproval %in% c(4, 5), 1, #disapprove/strongly disapprove
                                   ifelse(data_long$BGU_Trumpapproval %in% c(3, 6), 2,  #NAND, DK
                                          ifelse(data_long$BGU_Trumpapproval %in% c(1, 2), 3, NA))) # approves/strongly approves
+data_long$trump_approve_num <- ifelse(data_long$BGU_Trumpapproval %in% c(4, 5), 1, #disapprove/strongly disapprove
+                                  ifelse(data_long$BGU_Trumpapproval %in% c(3, 6), 2,  #NAND, DK
+                                         ifelse(data_long$BGU_Trumpapproval %in% c(1, 2), 3, NA))) # approves/strongly approves
 
 table(data_long$trump_approve)
+
+#  Levels for trump approval
+data_long$trump_approve <- factor(data_long$trump_approve, 
+                                  levels = c(1, 2, 3),
+                                  labels = c("Disapprove", "Neither", "Approve"))
 
  #4. Ideology 5 point scale
 

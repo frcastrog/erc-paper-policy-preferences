@@ -7,20 +7,27 @@ date: "Date: `r format(Sys.time(), '%F')`"
 
 ```{r setup, include=FALSE, message=FALSE, warning=FALSE}
 pacman::p_load(haven, dplyr, tidyverse, magrittr, forcats, ggplot2, psych, xtable,
-               broom, ggeffects, gridExtra, knitr, modelsummary)
+               broom, ggeffects, gridExtra, knitr, modelsummary,
+               pwr, xtable, InteractionPoweR, equivalence, DescTools)
 
 options(scipen = 999)
+
+set.seed(12345)
 ```
 
 # Open data
 
 ```{r load-data, message=FALSE, warning=FALSE}
 data_long <- readRDS("data/derived-data/data_long.rds")
+
+load("outputs/data/inter_power_1.RData")
+load("outputs/data/inter_power_2.RData")
 ```
 
 # Paper replication
 
-### Figure 1 - Average treatment effect of policy cues 
+### Figure 1 - Average treatment effect of policy cues
+
 Replication of Figure 1 ATE Across Issues on Barber & Pope (2019) but without separating by party
 
 ```{r}
@@ -71,7 +78,7 @@ ate_plot <- ggplot(ate_m1, aes(x = term, y = estimate)) +
 ate_plot
 ```
 
-### Figure 2 - Interaction with Party ID 
+### Figure 2 - Interaction with Party ID
 
 ```{r}
 model2 <- lm(policy_opinion ~ male + party_id + treatment_group*party_id, data = data_long)
@@ -180,7 +187,109 @@ ate_plot2 <- ggplot(ate_m2, aes(x = treatment, y = estimate, color = party_id)) 
 ate_plot2
 ```
 
-### Figure 3 - Interaction with political knowledge
+### Figure 3 - Interaction with Trump approval
+
+```{r}
+# Factor interaction
+model2_ta <- lm(policy_opinion ~ male + trump_approve + 
+                  treatment_group * trump_approve, data = data_long)
+
+
+tidy_m2_ta <- tidy(model2_ta, conf.int = TRUE)
+
+# Labels for trump_approve interaction terms
+term_labels_ta <- c(
+  "treatment_groupTL" = "Disapprove:Liberal Trump",
+  "treatment_groupTC" = "Disapprove:Conservative Trump",
+  "treatment_groupCFL" = "Disapprove:Liberal Close Friend",
+  "treatment_groupCFC" = "Disapprove:Conservative Close Friend",
+  "trump_approveNeither:treatment_groupTL" = "Neither:Liberal Trump",
+  "trump_approveApprove:treatment_groupTL" = "Approve:Liberal Trump",
+  "trump_approveNeither:treatment_groupTC" = "Neither:Conservative Trump",
+  "trump_approveApprove:treatment_groupTC" = "Approve:Conservative Trump",
+  "trump_approveNeither:treatment_groupCFL" = "Neither:Liberal Close Friend",
+  "trump_approveApprove:treatment_groupCFL" = "Approve:Liberal Close Friend",
+  "trump_approveNeither:treatment_groupCFC" = "Neither:Conservative Close Friend",
+  "trump_approveApprove:treatment_groupCFC" = "Approve:Conservative Close Friend")
+
+
+# Relabel terms for trump_approve
+ate_m2_ta <- tidy_m2_ta %>%
+  mutate(term = if_else(term %in% names(term_labels_ta), term_labels_ta[term], term)) %>%
+  filter(term != "(Intercept)")  # Exclude intercept 
+
+# Extract and handle intercept (effect for Disapprove as baseline)
+intercept_m2_ta <- filter(tidy_m2_ta, term == "(Intercept)")
+
+ate_m2_ta %<>%
+  add_row(term = "Disapprove:Baseline",
+          estimate = intercept_m2_ta$estimate,
+          std.error = intercept_m2_ta$std.error,
+          conf.low = intercept_m2_ta$estimate - 1.96 * intercept_m2_ta$std.error,
+          conf.high = intercept_m2_ta$estimate + 1.96 * intercept_m2_ta$std.error)
+
+# Add column for treatment and trump_approve to use in the plot
+ate_m2_ta %<>%
+  mutate(
+    treatment = case_when(
+      str_detect(term, "Liberal Trump") ~ "Liberal Trump",
+      str_detect(term, "Conservative Trump") ~ "Conservative Trump",
+      str_detect(term, "Liberal Close Friend") ~ "Liberal Close Friend",
+      str_detect(term, "Conservative Close Friend") ~ "Conservative Close Friend",
+      TRUE ~ as.character(term)  # To handle the Disapprove:Baseline
+    ),
+    trump_approve = case_when(
+      str_detect(term, "^Disapprove:") ~ "Disapprove",
+      str_detect(term, "^Neither:") ~ "Neither",
+      str_detect(term, "^Approve:") ~ "Approve")) %>%
+  filter(!is.na(trump_approve)) 
+
+
+ate_m2_ta$treatment <- factor(ate_m2_ta$treatment, levels = c(
+  "Liberal Trump", 
+  "Conservative Trump", 
+  "Liberal Close Friend", 
+  "Conservative Close Friend"))
+
+ate_m2_ta %<>%
+  filter(!is.na(treatment))
+
+# Reorder levels of trump_approve
+ate_m2_ta$trump_approve <- factor(ate_m2_ta$trump_approve, levels = c("Disapprove", "Neither", "Approve"))
+
+
+# Plot
+ate_plot2_ta <- ggplot(ate_m2_ta, aes(x = treatment, y = estimate, color = trump_approve)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), 
+                position = position_dodge(width = 0.7), width = 0.15) +
+  geom_point(position = position_dodge(width = 0.7), size = 3) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  labs(x = "Treatments", y = "Interaction Coefficient", color = "Trump Approval") +
+  scale_color_manual(values = c("Disapprove" = "black", 
+                                "Neither" = "#787878", 
+                                "Approve" = "gray")) +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 14, margin = margin(t = 20, b = 10)),
+    axis.title.y = element_text(size = 14),
+    axis.text.y = element_text(size = 12),
+    legend.position = "bottom",
+    legend.title = element_text(size = 12),  
+    legend.text = element_text(size = 12),   
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank()
+  ) +
+  scale_x_discrete(labels = c("Liberal\nTrump", 
+                              "Conservative\nTrump", 
+                              "Liberal\nClose Friend", 
+                              "Conservative\nClose Friend")) +
+  scale_y_continuous(limits = c(-0.6, 0.6))
+
+ate_plot2_ta
+```
+
+### Figure 4 - Interaction with political knowledge
 
 ```{r}
 model3 <- lm(policy_opinion ~ male + pid3 + factor(knowledge) + 
@@ -232,7 +341,7 @@ model3_plot <- ggplot(model3_table, aes(x = x, y = predicted, group = treatment)
 model3_plot
 ```
 
-### Figure 4 - Interaction with social conformism
+### Figure 5 - Interaction with social conformism
 
 ```{r, results = 'hide', warning=FALSE}
 model_4 <- lm(policy_opinion ~ male + pid3 + treatment_group*SCI, data = data_long)
@@ -314,11 +423,135 @@ m4_plot_cf
 m4_plot_final <- grid.arrange(m4_plot_trump, m4_plot_cf, nrow = 2) 
 ```
 
+
 # Supplementary Information Replication
 
+## Power Analysis
+
 ```{r}
+# Parameters
+effect_size_f <- 0.11    # according to PAP
+k <- 5                   # Number of groups
+n_per_group <- 1000 / k  # Sample size per group
+alpha <- 0.05            # Significance level
+power <- 0.80            # Desired power
+
+# Minimum effect size
+min_effect_size <- pwr.anova.test(k = k, n = n_per_group, sig.level = alpha, power = power, f = NULL)
+
+# Without the sample size, to get the required sample size per group 
+min_sample_size_group <- pwr.anova.test(k = k, n = NULL, f = effect_size_f, sig.level = alpha, power = power)
+
+# 3) Outputs
+
+# Convert the results to data frames for xtable
+df_min_effect_size <- as.data.frame(t(as.matrix(unlist(min_effect_size))))
+
+df_min_effect_size
+
+df_min_sample_size_group <- as.data.frame(t(as.matrix(unlist(min_sample_size_group))))
+
+df_min_sample_size_group
+```
+
+### Power of Interactions
+
+Get correlations between variables:
+First necessary correlation:
+Correlation between Y (policy opinion) and X1 (treatment) assumed to be close to zero as treatment is randomized. It'll be zero for all the interactions
+
+```{r}
+xy_cor <- 0.00
+```
+
+Second necessary correlation: between the interacting variable X2 and Y (policy opinion)
+Different scenarios:
+(1) X2 = party ID: lower value (democrat) assumed to be correlated to higher values of policy positions (liberal position), therefore, negative correlation.
+(2) X2 = Trump approval: lower value (disapproves) assumed to be correlated to higher values of policy positions (liberal position), therefore, negative correlation.
+(3) X2 = Political knowledge: higher values (more knowledge) assumed to be correlated to higher values of policy positions (liberal position), therefore, positive correlation.
+(4) X2 = Social conformism: higher values (more conformism) assumed to be correlated to lower values of policy positions (conservative position), therefore, negative correlation.
+
+```{r}
+x2y_cor <- -0.05
+
+x2y_cor2 <- 0.05 # only for political knowledge interaction
+
+```
+
+Third necessary correlation: between X1 (treatment) and interacting variable. is assumed at zero since the treatment is random
+
+```{r}
+x1x2_cor <- 0.00
+```
+
+Finally, the interaction effect between X1 X2 and Y is assumed to be amplified when compared to x2y_cor and x2y_cor2, therefore:
+
+```{r}
+x1x2y_cor <- -0.10
+
+x1x2y_cor2 <- 0.10  # only for political knowledge interaction
+```
+
+
+First, using variable correlations, we conduct an overall power for each group sample of n = 200
+
+```{r}
+power_group <- power_interaction_r2(
+  alpha = 0.05,             # alpha, for the power analysis
+  N = 200,                  # sample size
+  r.x1x2.y = .20,           # interaction effect to test (correlation between x1*x2 and y)
+  r.x1.y = .0,              # correlation between x1 and y
+  r.x2.y = .15,              # correlation between x2 and y
+  r.x1.x2 = .0)              # correlation between x1 and x2
+
+power_group
+```
+
+
+Calculation of power for interactions (1), (2) and (4)
+
+```{r, eval=FALSE, echo=T}
+inter_power_1 <- power_interaction(
+  n.iter = 10000,           # number of simulations per unique combination of input parameters
+  alpha = 0.05,             # alpha, for the power analysis
+  N = 1000,                 # sample size
+  r.x1x2.y = x1x2y_cor,     # interaction effect to test (correlation between x1*x2 and y)
+  r.x1.y = xy_cor,          # correlation between x1 and y
+  r.x2.y = x2y_cor,         # correlation between x2 and y  
+  r.x1.x2 = x1x2_cor,       # correlation between x1 and x2 
+  k.y =  3,                 # categories `policy_opinion`
+  k.x1 = 5)                 # 5 treatment groups (4 treatment + 1 control)
+```
+
+
+```{r}
+inter_power_1
+```
+
+Calculation of power for interaction (4)
+
+```{r, eval=FALSE, echo=T}
+inter_power_2 <- power_interaction(
+  n.iter = 10000,           # number of simulations per unique combination of input parameters
+  alpha = 0.05,             # alpha, for the power analysis
+  N = 1000,                 # sample size
+  r.x1x2.y = x1x2y_cor2,     # interaction effect to test (correlation between x1*x2 and y)
+  r.x1.y = xy_cor,          # correlation between x1 and y
+  r.x2.y = x2y_cor2,         # correlation between x2 and y  
+  r.x1.x2 = x1x2_cor,       # correlation between x1 and x2 
+  k.y =  3,                 # categories `policy_opinion`
+  k.x1 = 5)                 # 5 treatment groups (4 treatment + 1 control)
+```
+
+
+```{r}
+inter_power_2
+```
+
+
 ### Table B1.1 - Mean Demographic Values by Treatment Group
 
+```{r}
 data_balance <- data_long[data_long$policy_issue == "1",]
 table(data_balance$treatment_group)
 
@@ -334,8 +567,8 @@ summary(model1 <- lm(male ~  libtrump + contrump + libfriend + confriend, data =
 by(data_balance$knowledge, data_balance$treatment_group, mean)
 summary(model1 <- lm(knowledge ~  libtrump + contrump + libfriend + confriend, data = data_balance))
 
-by(data_balance$trump_approve, data_balance$treatment_group, mean, na.rm = T)
-summary(model1 <- lm(trump_approve ~ libtrump + contrump + libfriend + confriend, data = data_balance))
+by(data_balance$trump_approve_num, data_balance$treatment_group, mean, na.rm = T)
+summary(model1 <- lm(trump_approve_num ~ libtrump + contrump + libfriend + confriend, data = data_balance))
 
 by(data_balance$ideo5, data_balance$treatment_group, function(x) mean(x, na.rm = T))
 summary(model1 <- lm(ideo5 ~  libtrump + contrump + libfriend + confriend, data = data_balance))
@@ -362,9 +595,12 @@ by(data_balance$independent, data_balance$treatment_group, function(x) mean(x, n
 summary(model1 <- lm(independent ~ libtrump + contrump + libfriend + confriend, 
                      data = data_balance)) #party id somewhat significant, we might want to control
 
+```
+
+```{r}
 descriptive_stats <- data_balance %>%
   group_by(treatment_group) %>%
-  summarise(across(c(age, race_white, male, knowledge, trump_approve, ideo5, pid7, 
+  summarise(across(c(age, race_white, male, knowledge, trump_approve_num, ideo5, pid7, 
                      faminc_new, educ, newsint, republican, democrat, independent),
                    list(mean = ~mean(., na.rm = TRUE)), .names = "{.col}_{.fn}")) 
 
@@ -393,7 +629,7 @@ descriptive_stats_long
 
 ```{r}
 items_sci_full <- data_long %>% 
-  select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf4_rec, 
+  dplyr::select(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf4_rec, 
          BGU_conf5_rec, BGU_conf6_rec)
 
 ca_sci <- alpha(items_sci_full, check.keys=TRUE)
@@ -442,7 +678,6 @@ msummary(models_pol_issues,
          output = 'markdown')
 ```
 
-
 ### Table C3.1 With Party ID
 
 ```{r}
@@ -465,7 +700,6 @@ msummary(model2_ta,
          output = 'markdown')
 ```
 
-
 ### Table C3.2 With Political Knowledge
 
 ```{r}
@@ -478,7 +712,6 @@ msummary(model3,
 
 ```
 
-
 ### Table C3.3 With Social Conformism
 
 ```{r}
@@ -490,11 +723,12 @@ msummary(model_4,
          output = 'markdown')
 ```
 
-### Table D1.1 -  Realism check
+### Table D1.1 - Realism check
 
 To check if the influence (or lack of it) of the close friend treatment relates to how much the respondent talks about given political issues
 
 For individuals who never talk about that policy issue with their close friend.
+
 ```{r}
 models_realism_low <- list(
   "Wages" = lm(policy_opinion ~ male + pid3 + treatment_group, 
@@ -523,6 +757,7 @@ msummary(models_realism_low,
 ```
 
 For individuals who seldom talk and beyond about that policy issue with their close friend
+
 ```{r}
 models_realism_med_high <- list(
   "Wages" = lm(policy_opinion ~ male + pid3 + treatment_group, 
@@ -549,7 +784,6 @@ msummary(models_realism_med_high,
          title = "ATE Policy Positions - Discuss with Friends Subsample",
          output = 'markdown')
 ```
-
 
 ### Figure 1 - Distribution political knowledge
 
@@ -621,5 +855,3 @@ realism_plot <- ggplot(discussion_counts, aes(x = policy_issue, y = percentage, 
 
 realism_plot
 ```
-
-
