@@ -1,6 +1,6 @@
 #-------------------------------Data Preparation-------------------------------#
 #-Author: Francisca Castro ----------------------- Created: September 18, 2023-#
-#-R Version: 4.3.1 ----------------------------------- Revised: March 26, 2024-#
+#-R Version: 4.4.2 -------------------------------- Revised: December 24, 2024-#
 
 # 1) Load packages
 
@@ -225,31 +225,50 @@ data_long <- data_long[!is.na(data_long$policy_opinion), ] # remove empty rows
 data_long %<>% 
   rename(treatment_group = BGU_group) # create treatment groups
 
-### Create a new policy position variable that stores all the 9 policy positions where:
-# 1 minimum wage 2 taxes 3 abortion 4 immigration 5 guns 6 health care 7 background checks
-# 8 climate change 9 planned parenthood
+
+### Policy Positions
+
+# - Create a new policy position variable that stores all the 9 policy positions where:
+# - 1 minimum wage 2 taxes 3 abortion 4 immigration 5 guns 6 health care 7 background checks
+# - 8 climate change 9 planned parenthood
 
 data_long %<>%
   mutate(policy_issue = as.numeric(sub(".*([0-9]+)$", "\\1", policy_positions_raw)))
 
-### Modify policy_opinion
-# Following Barber & Pope (2023), they code the policy positions as following:
-# 1 support 0 don't know -1 oppose
-# let's first see how the original variable looks like
+# Modify policy_opinion
+# - Following Barber & Pope (2023), they code the policy positions as following:
+# - 1 support 0 don't know -1 oppose
+# - let's first see how the original variable looks like
 
 table(data_long$policy_opinion)
 #1    2    9 
 #5162 2882  956 
 
 # 1 (supports) stay the same. 2 (oppose) becomes -1, and 9 (don't know) becomes 0.
-
 data_long %<>%
-  mutate(policy_opinion = ifelse(policy_opinion == 9, 0, ifelse(policy_opinion == 2, -1, policy_opinion)))
+  mutate(policy_opinion = case_when(
+    policy_opinion == 1 ~ 1,    # Support stays 1
+    policy_opinion == 2 ~ -1,   # Oppose becomes -1
+    policy_opinion == 9 ~ 0     # Don't know becomes 0
+  ))
 
+# Reverse the coding for abortion and guns questions where supporting is the conservative position
+data_long %<>%
+  mutate(policy_opinion = case_when(
+    policy_issue %in% c(3, 5) ~ policy_opinion * -1,  # Reverse for abortion and guns
+    TRUE ~ policy_opinion  # Keep original coding for all other issues
+  ))
+
+# Check results
 table(data_long$policy_opinion)
-#-1    0    1 
-#2882  956 5162 
 
+# Check means by issue
+data_long %>%
+  group_by(policy_issue) %>%
+  summarize(
+    mean_opinion = mean(policy_opinion, na.rm = TRUE),
+    n = n()
+  )
 
 ### Create experimental treatment conditions based on treatment_group
 table(data_long$treatment_group)
