@@ -4,3 +4,5 @@
 .Ruserdata
 r-project.Rproj
 .DS_Store
+renv/
+renv.lock
