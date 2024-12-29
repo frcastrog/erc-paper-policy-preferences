@@ -1,14 +1,17 @@
 #-------------------------------Data Preparation-------------------------------#
 #-Author: Francisca Castro ----------------------- Created: September 18, 2023-#
 #-R Version: 4.4.2 -------------------------------- Revised: December 24, 2024-#
+#-Barak's revision: 4.4.2 -------------------------------- Revised: December 29, 2024-#
+
 
 # 1) Load packages
 
 pacman::p_load(haven, dplyr, tidyr, magrittr, forcats, ggplot2, psych, xtable)
 
+
 # 2) Load data
 
-data_raw <- read_sav("data/data-raw/CCES21_BGU_OUTPUT.sav")
+data_raw <- read_sav("../erc-paper-policy-preferences/data/data-raw/CCES21_BGU_OUTPUT.sav")
 
 # 3) Data cleaning
 

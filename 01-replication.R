@@ -15,7 +15,8 @@ options(scipen = 999)
 # - This script requires the data produced by `00-data-prep`
 # - Alternative, one can load the data available in `data/derived-data/`
 
-readRDS("data/derived-data/data_long.rds")
+
+data_long<-readRDS("../erc-paper-policy-preferences/data/derived-data/data_long.rds")
 
 
 # 1.2) Helpers
