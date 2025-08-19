@@ -3,12 +3,14 @@
 
 # External Cues and Policy Preferences: Rethinking the Drivers of Policy Positions
 
-[Francisca Castro](https://francisca-castro.com/) • Institute of Social
-Sciences • Humboldt-Universität zu Berlin  
+[Francisca Castro](https://francisca-castro.com/) • ISDC - International Security and Development Center
+
 [Jennifer Oser](https://www.jenniferoser.com/) • Department of Politics
 and Government • Ben-Gurion University of the Negev  
+
 [Fernando Feitosa](https://ferfeitosa.github.io/) • Department of
 Political Science • McGill University  
+
 [Nir Grinberg](https://www.nirg.net/) • Department of Software and
 Information Systems Engineering • Ben-Gurion University of the Negev
 
