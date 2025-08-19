@@ -1,6 +1,6 @@
 #-------------------------------Data Preparation-------------------------------#
 #-Author: Francisca Castro ----------------------- Created: September 18, 2023-#
-#-R Version: 4.4.2 -------------------------------- Revised: December 24, 2024-#
+#-R Version: 4.5.0 ---------------------------------- Revised: August 07, 2025-#
 
 # 1) Load packages
 
@@ -198,7 +198,9 @@ print(alpha(items_sci_reduced, check.keys=TRUE))
 
 data_raw %<>%
   rowwise() %>%
-  mutate(SCI = mean(c_across(c(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, BGU_conf6_rec)), na.rm = TRUE)) %>%
+  mutate(SCI = mean(c_across(c(BGU_conf1_rec, BGU_conf2_rec, BGU_conf3_rec, 
+                               BGU_conf4_rec, BGU_conf5_rec, BGU_conf6_rec)), 
+                    na.rm = TRUE)) %>%
   ungroup()
 
 table(data_raw$SCI)

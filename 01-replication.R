@@ -1,12 +1,12 @@
 #------------------------------Replication Script------------------------------#
 #-------------------------------------------------- Created: December 27, 2023-#
-#-R Version: 4.4.2 -------------------------------- Revised: December 24, 2024-#
+#-R Version: 4.5.0 ---------------------------------- Revised: August 07, 2025-#
 
 # 1) Load packages
 
 pacman::p_load(haven, dplyr, tidyverse, magrittr, forcats, ggplot2, psych, xtable,
                broom, ggeffects, gridExtra, knitr, modelsummary, purrr, kableExtra,
-               pwr)
+               pwr, margins, nnet)
 
 options(scipen = 999)
 
@@ -15,8 +15,7 @@ options(scipen = 999)
 # - This script requires the data produced by `00-data-prep`
 # - Alternative, one can load the data available in `data/derived-data/`
 
-readRDS("data/derived-data/data_long.rds")
-
+data_long <- readRDS("data/derived-data/data_long.rds")
 
 # 1.2) Helpers
 
@@ -48,7 +47,7 @@ relabel_terms <- function(data, label_map) {
 # - Replication of Figure 1 ATE Across Issues on Barber & Pope (2019) 
 # - but without separating by party
 
-model1 <- lm(policy_opinion ~ male + pid3 + treatment_group, 
+model1 <- lm(policy_opinion ~ male + party_id + treatment_group, 
              data = data_long, weights = teamweight) # with weights
 
 # Calculate confidence intervals
@@ -171,7 +170,7 @@ ggsave("outputs/figures/inter_plot_partyid_2.png", plot = ate_plot2,
        dpi = 600, width =7.6, height = 7)
 
 ### Figure 2b - Interaction with Trump approval
-model2_ta <- lm(policy_opinion ~ male + trump_approve + 
+model2_ta <- lm(policy_opinion ~ male  + trump_approve + 
                 treatment_group * trump_approve, data = data_long,
                 weights = teamweight)
 
@@ -268,7 +267,7 @@ ggsave("outputs/figures/inter_plot_trump_app_2.png", plot = ate_plot2_ta, dpi = 
 
 ### Figure 3 - Interaction with political knowledge
 
-model3b <- lm(policy_opinion ~ male + pid3 + knowledge + 
+model3b <- lm(policy_opinion ~ male + party_id + knowledge + 
               treatment_group*knowledge, data = data_long,
               weights = teamweight)
 
@@ -316,9 +315,63 @@ model3_plot
 
 ggsave("outputs/figures/pol_knowledge.png", plot = model3_plot, dpi = 600, width = 8, height = 6)
 
+### Figure 3b - Interaction with political knowledge/treatment effects version
+
+model3_ate <- margins(model3b, #marginal effects
+                                       variables = "treatment_group",
+                                       at = list(knowledge = 0:6))
+
+model3_ate_df <- summary(model3_ate) %>% # convert to df
+  as_tibble() %>%
+  mutate(
+    treatment = case_when(
+      factor == "treatment_groupTL" ~ "Liberal Trump",
+      factor == "treatment_groupTC" ~ "Conservative Trump",
+      factor == "treatment_groupCFL" ~ "Liberal Close Friend",
+      factor == "treatment_groupCFC" ~ "Conservative Close Friend"
+    )
+    # No need to create knowledge column as it already exists
+  ) %>%
+  mutate(treatment = factor(treatment, 
+                            levels = c("Liberal Trump", "Conservative Trump",
+                                       "Liberal Close Friend", "Conservative Close Friend")))
+
+
+# Plot with new name
+model3_ate_plot <- ggplot(model3_ate_df, aes(x = knowledge, y = AME)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), 
+              fill = "grey80", alpha = 0.5) +  
+  geom_line(color = "black", linewidth = 1) +  
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  facet_wrap(~treatment, scales = "free_y", ncol = 2) +
+  labs(y = "Treatment Effect", x = "Level of Political Knowledge") +
+  theme_minimal(base_size = 14) +  
+  theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 14),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(linetype = "solid", 
+                                    fill = NA, color = "black", linewidth = 0.5),
+        axis.title.x = element_text(size = 14),  
+        axis.title.y = element_text(size = 14),  
+        axis.text.x = element_text(size = 12),   
+        axis.text.y = element_text(size = 12)) +
+  scale_x_continuous(breaks = 0:6) +
+  coord_cartesian(ylim = c(-0.3, 0.5))
+
+model3_ate_plot
+
+ggsave("outputs/figures/model3_ate_plot.png", 
+       plot = model3_ate_plot, 
+       dpi = 600, 
+       width = 8, 
+       height = 6)
+
 ### Figure 4 - Interaction with social conformism
 
-model_4 <- lm(policy_opinion ~ male + pid3 + treatment_group*SCI, 
+model_4 <- lm(policy_opinion ~ male + party_id + treatment_group*SCI, 
               data = data_long, weights = teamweight)
 
 m4_TL <- ggpredict(model_4, terms = c("SCI", "treatment_group[TL]"))
@@ -398,6 +451,73 @@ m4_plot_cf
 m4_plot_final <- grid.arrange(m4_plot_trump, m4_plot_cf, nrow = 2) 
 
 ggsave("outputs/figures/social_conf.png", plot = m4_plot_final, dpi = 600, width = 7, height = 6)
+
+### Figure 4b - Social conformism/treatment effects
+model4_ate <- margins(model_4, 
+                      variables = "treatment_group",
+                      at = list(SCI = seq(1, 3, by = 0.1))) 
+
+# Convert to data frame
+model4_ate_df <- summary(model4_ate) %>%
+  as_tibble() %>%
+  mutate(
+    treatment = case_when(
+      factor == "treatment_groupTL" ~ "Liberal Trump",
+      factor == "treatment_groupTC" ~ "Conservative Trump",
+      factor == "treatment_groupCFL" ~ "Liberal Close Friend",
+      factor == "treatment_groupCFC" ~ "Conservative Close Friend"
+    )
+  ) %>%
+  mutate(treatment = factor(treatment, 
+                            levels = c("Liberal Trump", "Conservative Trump",
+                                       "Liberal Close Friend", "Conservative Close Friend")))
+
+# Create the treatment effects plot
+model4_ate_plot <- ggplot(model4_ate_df, aes(x = SCI, y = AME)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), 
+              fill = "grey80", alpha = 0.5) +  
+  geom_line(color = "black", linewidth = 1) +  
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  facet_wrap(~treatment, scales = "free_y", ncol = 2) +
+  labs(y = "Treatment Effect", x = "Social Conformism Index (SCI)") +
+  theme_minimal(base_size = 14) +  
+  theme(legend.position = "none",
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = 14),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(linetype = "solid", 
+                                    fill = NA, color = "black", linewidth = 0.5),
+        axis.title.x = element_text(size = 14),  
+        axis.title.y = element_text(size = 14),  
+        axis.text.x = element_text(size = 12),   
+        axis.text.y = element_text(size = 12)) +
+  scale_x_continuous(breaks = seq(1, 3, by = 0.5)) +
+  coord_cartesian(ylim = c(-0.3, 0.5))  # Same y-axis limits as knowledge plot
+
+model4_ate_plot
+
+ggsave("outputs/figures/model4_ate_plot.png", 
+       plot = model4_ate_plot, 
+       dpi = 600, 
+       width = 8, 
+       height = 6)
+
+#- Put model3_ate_plot and model4_ate_plot together
+
+model3_ate_plot <- model3_ate_plot + ggtitle("(a) Political Knowledge") + theme(plot.title = element_text(hjust = 0.5))
+model4_ate_plot <- model4_ate_plot + ggtitle("(b) Social Conformism") + theme(plot.title = element_text(hjust = 0.5))
+
+# Arrange the plots horizontally
+merged_figures <- grid.arrange(model3_ate_plot, model4_ate_plot, ncol = 2)
+
+
+ggsave("outputs/figures/merged_figures.png", 
+       plot = merged_figures, 
+       dpi = 600, 
+       width = 12, 
+       height = 6)
 
 # 3) Supplementary Information Replication
 
@@ -546,31 +666,28 @@ msummary(model1,
 ### Table C1.2 - Treatment effect per policy issues
 
 models_pol_issues <- list(
-  "Wages" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+  "Wages" = lm(policy_opinion ~ male + factor(party_id)  + treatment_group, 
                data = data_long[data_long$policy_issue == 1, ],
                weights = data_long[data_long$policy_issue == 1, ]$teamweight),
-  "Taxes" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+  "Taxes" = lm(policy_opinion ~ male + factor(party_id)  + treatment_group, 
                data = data_long[data_long$policy_issue == 2, ],
                weights = data_long[data_long$policy_issue == 2, ]$teamweight),
-  "Abortion" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+  "Abortion" = lm(policy_opinion ~ male + factor(party_id)  + treatment_group, 
                   data = data_long[data_long$policy_issue == 3, ],
                   weights = data_long[data_long$policy_issue == 3, ]$teamweight),
-  "Immigration" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+  "Immigration" = lm(policy_opinion ~ male + factor(party_id)  + treatment_group, 
                      data = data_long[data_long$policy_issue == 4, ],
                      weights = data_long[data_long$policy_issue == 4, ]$teamweight),
-  "Guns" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+  "Guns" = lm(policy_opinion ~ male + factor(party_id)  + treatment_group, 
               data = data_long[data_long$policy_issue == 5, ],
               weights = data_long[data_long$policy_issue == 5, ]$teamweight),
-  "Health Care" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+  "Health Care" = lm(policy_opinion ~ male + factor(party_id)  + treatment_group, 
                      data = data_long[data_long$policy_issue == 6, ],
                      weights = data_long[data_long$policy_issue == 6, ]$teamweight),
-  "Background Checks" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+  "Background Checks" = lm(policy_opinion ~ male + factor(party_id)  + treatment_group, 
                            data = data_long[data_long$policy_issue == 7, ],
                            weights = data_long[data_long$policy_issue == 7, ]$teamweight),
-  "Climate Change" = lm(policy_opinion ~ male + pid3 + treatment_group, 
-                        data = data_long[data_long$policy_issue == 8, ],
-                        weights = data_long[data_long$policy_issue == 8, ]$teamweight),
-  "Planned Parenthood" = lm(policy_opinion ~ male + pid3 + treatment_group, 
+  "Planned Parenthood" = lm(policy_opinion ~ male + factor(party_id)  + treatment_group, 
                             data = data_long[data_long$policy_issue == 9, ],
                             weights = data_long[data_long$policy_issue == 9, ]$teamweight))
 
@@ -633,22 +750,28 @@ discussion_counts <- data_long %>%
   mutate(percentage = count / sum(count)) %>%
   ungroup()
 
-# Rename the levels with the actual policy names
-policy_issue_names <- c("Minimum Wage", "Taxes", "Abortion", "Immigration", 
-                        "Guns", "Health Care", "Background Checks", "Climate Change", 
-                        "Planned Parenthood")
+# Filter out climate change data
+discussion_counts <- discussion_counts %>%
+  filter(policy_issue != "Climate Change")  # Remove climate change by name
 
-# reorder the levels
-levels(discussion_counts$policy_issue) <- rev(policy_issue_names)
+# Drop unused levels
+discussion_counts$policy_issue <- droplevels(discussion_counts$policy_issue)
 
+# Check what we have now
+print(levels(discussion_counts$policy_issue))
+print(length(levels(discussion_counts$policy_issue)))
+
+# Now reorder the remaining 8 levels
 discussion_counts$policy_issue <- factor(discussion_counts$policy_issue, 
-                                         levels = rev(unique(discussion_counts$policy_issue)))
+                                         levels = rev(c("Minimum Wage", "Taxes", "Abortion", "Immigration", 
+                                                        "Guns", "Health Care", "Background Checks", 
+                                                        "Planned Parenthood")))
 
 discussion_counts$discussion_level <- factor(discussion_counts$discussion_level, levels = c(6, 5, 4, 3, 2, 1))
 
 realism_plot <- ggplot(discussion_counts, aes(x = policy_issue, y = percentage, fill = discussion_level)) +
   geom_bar(stat = "identity", position = "fill") +
-  scale_fill_grey(start = 0.2, end = 0.8) +  # Light to dark for levels 1 to 6
+  scale_fill_grey(start = 0.2, end = 0.8) +
   labs(x = "Policy Issue", y = "Percentage", fill = "Discussion Frequency") +
   theme_minimal() +
   scale_y_continuous(labels = scales::percent_format(scale = 100)) +
@@ -662,7 +785,6 @@ realism_plot <- ggplot(discussion_counts, aes(x = policy_issue, y = percentage, 
   annotate("text", x = "Minimum Wage", y = 0.11, label = "Never", size = 3, hjust = 0.5, vjust = 0.5, color = "black")
 
 realism_plot
-
 
 ggsave("outputs/figures/realism_hist.png", plot = realism_plot, dpi = 600, width = 8, height = 6)
 
@@ -679,46 +801,111 @@ data_long <- data_long %>%
   mutate(frequent_discussant = ifelse(pol_dis_friend >= 3.0, 1, 0))
 
 models_realism <- list(
-  "Wages" = lm(policy_opinion ~ male + pid3 + treatment_group*frequent_discussant, 
+  "Wages" = lm(policy_opinion ~ male + party_id + treatment_group*frequent_discussant, 
                data = data_long[data_long$policy_issue == 1, ],
                weights = data_long[data_long$policy_issue == 1, ]$teamweight),
   
-  "Taxes" = lm(policy_opinion ~ male + pid3 + treatment_group*frequent_discussant, 
+  "Taxes" = lm(policy_opinion ~ male + party_id + treatment_group*frequent_discussant, 
                data = data_long[data_long$policy_issue == 2, ],
                weights = data_long[data_long$policy_issue == 2, ]$teamweight),
   
-  "Abortion" = lm(policy_opinion ~ male + pid3 + treatment_group*frequent_discussant, 
+  "Abortion" = lm(policy_opinion ~ male + party_id + treatment_group*frequent_discussant, 
                   data = data_long[data_long$policy_issue == 3, ],
                   weights = data_long[data_long$policy_issue == 3, ]$teamweight),
   
-  "Immigration" = lm(policy_opinion ~ male + pid3 + treatment_group*frequent_discussant, 
+  "Immigration" = lm(policy_opinion ~ male + party_id + treatment_group*frequent_discussant, 
                      data = data_long[data_long$policy_issue == 4, ],
                      weights = data_long[data_long$policy_issue == 4, ]$teamweight),
   
-  "Guns" = lm(policy_opinion ~ male + pid3 + treatment_group*frequent_discussant, 
+  "Guns" = lm(policy_opinion ~ male + party_id + treatment_group*frequent_discussant, 
               data = data_long[data_long$policy_issue == 5, ],
               weights = data_long[data_long$policy_issue == 5, ]$teamweight),
   
-  "Health Care" = lm(policy_opinion ~ male + pid3 + treatment_group*frequent_discussant, 
+  "Health Care" = lm(policy_opinion ~ male + party_id + treatment_group*frequent_discussant, 
                      data = data_long[data_long$policy_issue == 6, ],
                      weights = data_long[data_long$policy_issue == 6, ]$teamweight),
   
-  "Background Checks" = lm(policy_opinion ~ male + pid3 + treatment_group*frequent_discussant, 
+  "Background Checks" = lm(policy_opinion ~ male + party_id + treatment_group*frequent_discussant, 
                            data = data_long[data_long$policy_issue == 7, ],
                            weights = data_long[data_long$policy_issue == 7, ]$teamweight),
   
-  "Climate Change" = lm(policy_opinion ~ male + pid3 + treatment_group*frequent_discussant, 
-                        data = data_long[data_long$policy_issue == 8, ],
-                        weights = data_long[data_long$policy_issue == 8, ]$teamweight),
-  
-  "Planned Parenthood" = lm(policy_opinion ~ male + pid3 + treatment_group*frequent_discussant, 
+  "Planned Parenthood" = lm(policy_opinion ~ male + party_id + treatment_group*frequent_discussant, 
                             data = data_long[data_long$policy_issue == 9, ],
                             weights = data_long[data_long$policy_issue == 9, ]$teamweight))
 
 
-# Create table with results
 msummary(models_realism,
          stars = c('*' = .1, '**' = .05, '***' = .01),
          title = "ATE Policy Positions - Interaction with Discussion Frequency",
          output = 'markdown')
 
+
+### Section D.2 - Treatment effects on Trump approval
+
+# Chi-square test for treatment independence
+chisq_result <- chisq.test(data_balance$treatment_group, data_balance$trump_approve)
+
+# Proportions table
+prop_table <- data_balance %>%
+  group_by(treatment_group, trump_approve) %>%
+  summarise(n = n()) %>%
+  group_by(treatment_group) %>%
+  mutate(prop = n/sum(n))
+
+prop_table_wide <- prop_table %>%
+  select(treatment_group, trump_approve, prop) %>%
+  pivot_wider(names_from = trump_approve, values_from = prop) %>%
+  mutate(across(c(Disapprove, Neither, Approve), ~round(.x, 3))) %>%
+  rename("Treatment Group" = treatment_group)
+
+chisq_note <- paste0("Chi-square test: χ² = ", round(chisq_result$statistic, 2), 
+                     ", df = ", chisq_result$parameter, 
+                     ", p = ", round(chisq_result$p.value, 3))
+
+kable(prop_table_wide, format = "latex", booktabs = TRUE,
+      caption = "Trump Approval Distribution by Treatment Group", digits = 3) %>%
+  kable_styling(latex_options = c("hold_position")) %>%
+  footnote(general = chisq_note, footnote_as_chunk = TRUE)
+
+# Multinomial logit model
+data_balance$trump_approve_new <- relevel(factor(data_balance$trump_approve), ref = "Neither")
+
+multinom_model_ta <- multinom(trump_approve_new ~ treatment_group, 
+                              data = data_balance, weights = teamweight)
+
+multinom_results <- summary(multinom_model_ta)
+coef_table <- multinom_results$coefficients
+se_table <- multinom_results$standard.errors
+z_scores <- coef_table / se_table
+p_values <- 2 * (1 - pnorm(abs(z_scores)))
+
+format_coef <- function(coef, pval) {
+  stars <- ifelse(pval < 0.01, "**", 
+                  ifelse(pval < 0.05, "*", 
+                         ifelse(pval < 0.1, "*", "")))
+  paste0(sprintf("%.3f", coef), stars)
+}
+
+restructured_table <- matrix(NA, nrow = 5, ncol = 2)
+rownames(restructured_table) <- c("(Intercept)", "Liberal Trump", "Conservative Trump", 
+                                  "Liberal Close Friend", "Conservative Close Friend")
+colnames(restructured_table) <- c("Disapprove", "Approve")
+
+for(i in 1:5) {
+  for(j in 1:2) {
+    restructured_table[i,j] <- paste0(format_coef(coef_table[j,i], p_values[j,i]),
+                                      " (", sprintf("%.3f", se_table[j,i]), ")")
+  }
+}
+
+final_df <- data.frame(
+  Treatment = rownames(restructured_table),
+  Disapprove = restructured_table[,1],
+  Approve = restructured_table[,2]
+)
+
+kable(final_df, format = "latex", booktabs = TRUE, row.names = FALSE,
+      caption = "Multinomial Logit: Treatment Effects on Trump Approval", escape = FALSE) %>%
+  kable_styling(latex_options = c("hold_position")) %>%
+  footnote(general = "Reference category: Neither. Standard errors in parentheses. ** p<0.01, * p<0.05",
+           footnote_as_chunk = TRUE)
